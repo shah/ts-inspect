@@ -10,6 +10,15 @@ export interface InspectionResult<T> {
   readonly inspectionTarget: T;
 }
 
+export interface WrappedInspectionResult<T, W> extends InspectionResult<T> {
+  readonly wrappedInspectionResult: InspectionIssue<W>;
+}
+
+export const isWrappedInspectionIssue = safety.typeGuardCustom<
+  InspectionResult<unknown>,
+  WrappedInspectionResult<unknown, unknown>
+>("wrappedInspectionResult");
+
 export interface DiagnosableInspectionResult<T> {
   readonly inspectionDiagnostic: T;
 }
@@ -114,6 +123,11 @@ export interface InspectionDiagnostics<T, C extends InspectionContext<T>> {
     ctx: C,
   ) => Promise<InspectionResult<T>>;
   continue: (ctx: C, result: InspectionResult<T>) => boolean;
+  append: <W>(
+    o: T,
+    diags: InspectionDiagnostics<W, InspectionContext<W>>,
+    ctx: C,
+  ) => void | false;
 }
 
 export interface Inspector<T, C extends InspectionContext<T>> {
@@ -166,6 +180,33 @@ export class InspectionDiagnosticsRecorder<T, C extends InspectionContext<T>>
     this.exceptions.push(exception);
     return exception;
   }
+
+  append<W>(
+    o: T,
+    diags: InspectionDiagnostics<W, InspectionContext<W>>,
+    ctx: C,
+  ): void | false {
+    if (diags instanceof InspectionDiagnosticsRecorder) {
+      diags.issues.forEach((issue) => {
+        const wrapped: WrappedInspectionResult<T, W> = {
+          isInspectionResult: true,
+          inspectionTarget: o,
+          wrappedInspectionResult: issue,
+        };
+        this.onIssue(wrapped, ctx);
+      });
+      diags.exceptions.forEach((excp) => {
+        const wrapped: WrappedInspectionResult<T, W> = {
+          isInspectionResult: true,
+          inspectionTarget: o,
+          wrappedInspectionResult: excp,
+        };
+        this.onException(excp.exception, wrapped, ctx);
+      });
+    } else {
+      return false;
+    }
+  }
 }
 
 export class ConsoleInspectionDiagnostics<T, C extends InspectionContext<T>, D>
@@ -203,6 +244,14 @@ export class ConsoleInspectionDiagnostics<T, C extends InspectionContext<T>, D>
       }
     }
     return await this.wrap.onException(err, result, ctx);
+  }
+
+  append<W>(
+    o: T,
+    diags: InspectionDiagnostics<W, InspectionContext<W>>,
+    ctx: C,
+  ): void | false {
+    return this.wrap.append(o, diags, ctx);
   }
 }
 
