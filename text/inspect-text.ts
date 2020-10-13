@@ -43,7 +43,7 @@ export class TypicalTextInspectionContext implements TextInspectionContext {
   readonly inspectionTarget: TextContentSupplier;
   readonly diags = new insp.InspectionDiagnosticsRecorder<
     TextContentSupplier,
-    insp.InspectionContext<TextContentSupplier>
+    TextInspectionContext
   >();
 
   constructor(
@@ -57,6 +57,30 @@ export class TypicalTextInspectionContext implements TextInspectionContext {
     this.inspectionTarget = typeof sanitized == "string"
       ? { text: sanitized }
       : sanitized;
+  }
+}
+
+export class DerivedTextInspectionContext<P> implements TextInspectionContext {
+  readonly inspectionTarget: TextContentSupplier;
+  readonly diags: insp.InspectionDiagnostics<
+    TextContentSupplier,
+    TextInspectionContext
+  >;
+
+  constructor(
+    parent: P,
+    parentCtx: insp.InspectionContext<P>,
+    content: string | TextContentSupplier,
+    sanitize?: safety.TransformerSync<
+      TextSanitizerContext,
+      string | TextContentSupplier
+    >,
+  ) {
+    const sanitized = sanitize ? sanitize.transform(content) : content;
+    this.inspectionTarget = typeof sanitized == "string"
+      ? { text: sanitized }
+      : sanitized;
+    this.diags = new insp.DerivedInspectionDiagnostics(parent, parentCtx);
   }
 }
 

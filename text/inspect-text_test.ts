@@ -2,8 +2,13 @@ import { testingAsserts as ta } from "../deps-test.ts";
 import * as insp from "../inspect.ts";
 import * as mod from "./mod.ts";
 
-const longText =
+const goodText =
   `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
+eiusmod tempor.`;
+
+class TestPrime {
+  readonly longText =
+    `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
 eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
 ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut 
 aliquip ex ea commodo consequat. Duis aute irure dolor in 
@@ -11,15 +16,12 @@ reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
 pariatur. Excepteur sint occaecat cupidatat non proident, sunt in 
 culpa qui officia deserunt mollit anim id est laborum.`;
 
-const shortText = `Lorem ipsum dolor sit amet, consectetur adipiscing`;
+  readonly shortText = `Lorem ipsum dolor sit amet, consectetur adipiscing`;
+}
 
-const goodText =
-  `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
-eiusmod tempor.`;
-
-Deno.test(`word count matches expectations`, async () => {
+Deno.test(`word count matches expectations (direct)`, async () => {
   const ctx = new mod.TypicalTextInspectionContext(goodText);
-  const ip = insp.inspectionPipe(ctx, mod.inspectWordCountRange);
+  const ip = insp.inspectionPipe(mod.inspectWordCountRange);
   const result = await ip(ctx);
 
   ta.assert(mod.isSuccessfulTextInspection(result));
@@ -27,43 +29,59 @@ Deno.test(`word count matches expectations`, async () => {
   ta.assertEquals(ctx.diags.exceptions.length, 0);
 });
 
-Deno.test(`word count exceeds expectations`, async () => {
-  const ctx = new mod.TypicalTextInspectionContext(longText);
-  const ip = insp.inspectionPipe(ctx, mod.inspectWordCountRange);
-  const result = await ip(ctx);
+Deno.test(`word count doest not match expectations (direct)`, async () => {
+  const diags = new insp.InspectionDiagnosticsRecorder<
+    TestPrime,
+    insp.InspectionContext<TestPrime>
+  >();
+  const ctx: insp.InspectionContext<TestPrime> = {
+    inspectionTarget: new TestPrime(),
+    diags: diags,
+  };
 
-  ta.assert(mod.isTextInspectionIssue(result));
-  ta.assertEquals(ctx.diags.issues.length, 1);
-  ta.assertEquals(ctx.diags.exceptions.length, 0);
+  const ip = insp.inspectionPipe(mod.inspectWordCountRange);
 
-  const issue = ctx.diags.issues[0];
-  ta.assert(mod.isDiagnosableTextInspectionIssue(issue));
+  // derived allows "sub-inspections" that store results in the parent diags
+  const longTextResult = await ip(
+    new mod.DerivedTextInspectionContext(
+      ctx.inspectionTarget,
+      ctx,
+      ctx.inspectionTarget.longText,
+    ),
+  );
+  const shortTextResult = await ip(
+    new mod.DerivedTextInspectionContext(
+      ctx.inspectionTarget,
+      ctx,
+      ctx.inspectionTarget.shortText,
+    ),
+  );
+
+  ta.assertEquals(diags.issues.length, 2);
+  ta.assertEquals(diags.exceptions.length, 0);
+
+  const longTextIssue = diags.issues[0];
+  ta.assert(mod.isTextInspectionIssue(longTextResult));
+  ta.assert(insp.isWrappedInspectionResult(longTextIssue));
+  ta.assert(mod.isDiagnosableTextInspectionIssue(longTextIssue));
   ta.assertEquals(
-    issue.inspectionDiagnostic,
+    longTextIssue.inspectionDiagnostic,
     "Word count should be between 10-15 (not 69)",
   );
-});
 
-Deno.test(`word count lower than expectations`, async () => {
-  const ctx = new mod.TypicalTextInspectionContext(shortText);
-  const ip = insp.inspectionPipe(ctx, mod.inspectWordCountRange);
-  const result = await ip(ctx);
-
-  ta.assert(mod.isTextInspectionIssue(result));
-  ta.assertEquals(ctx.diags.issues.length, 1);
-  ta.assertEquals(ctx.diags.exceptions.length, 0);
-
-  const issue = ctx.diags.issues[0];
-  ta.assert(mod.isDiagnosableTextInspectionIssue(issue));
+  const shortTextIssue = diags.issues[1];
+  ta.assert(mod.isTextInspectionIssue(shortTextResult));
+  ta.assert(insp.isWrappedInspectionResult(shortTextIssue));
+  ta.assert(mod.isDiagnosableTextInspectionIssue(shortTextIssue));
   ta.assertEquals(
-    issue.inspectionDiagnostic,
+    shortTextIssue.inspectionDiagnostic,
     "Word count should be between 10-15 (not 7)",
   );
 });
 
 Deno.test(`invalid website`, async () => {
+  const ip = insp.inspectionPipe(mod.inspectWebsiteURL);
   const ctx = new mod.TypicalTextInspectionContext("htps://bad.com/url");
-  const ip = insp.inspectionPipe(ctx, mod.inspectWebsiteURL);
   const result = await ip(ctx);
 
   ta.assert(mod.isTextInspectionIssue(result));

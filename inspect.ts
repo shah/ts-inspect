@@ -1,23 +1,14 @@
 import { safety } from "./deps.ts";
 
 export interface InspectionContext<T> {
-  inspectionTarget: T;
-  diags: InspectionDiagnostics<T, InspectionContext<T>>;
+  readonly inspectionTarget: T;
+  readonly diags: InspectionDiagnostics<T, InspectionContext<T>>;
 }
 
 export interface InspectionResult<T> {
   readonly isInspectionResult: true;
   readonly inspectionTarget: T;
 }
-
-export interface WrappedInspectionResult<T, W> extends InspectionResult<T> {
-  readonly wrappedInspectionResult: InspectionIssue<W>;
-}
-
-export const isWrappedInspectionIssue = safety.typeGuardCustom<
-  InspectionResult<unknown>,
-  WrappedInspectionResult<unknown, unknown>
->("wrappedInspectionResult");
 
 export interface DiagnosableInspectionResult<T> {
   readonly inspectionDiagnostic: T;
@@ -123,11 +114,6 @@ export interface InspectionDiagnostics<T, C extends InspectionContext<T>> {
     ctx: C,
   ) => Promise<InspectionResult<T>>;
   continue: (ctx: C, result: InspectionResult<T>) => boolean;
-  append: <W>(
-    o: T,
-    diags: InspectionDiagnostics<W, InspectionContext<W>>,
-    ctx: C,
-  ) => void | false;
 }
 
 export interface Inspector<T, C extends InspectionContext<T>> {
@@ -180,32 +166,61 @@ export class InspectionDiagnosticsRecorder<T, C extends InspectionContext<T>>
     this.exceptions.push(exception);
     return exception;
   }
+}
 
-  append<W>(
-    o: T,
-    diags: InspectionDiagnostics<W, InspectionContext<W>>,
+export interface WrappedInspectionResult<P> extends InspectionResult<P> {
+  readonly wrappedInspectionResult: InspectionResult<unknown>;
+}
+
+export const isWrappedInspectionResult = safety.typeGuard<
+  WrappedInspectionResult<unknown>
+>("wrappedInspectionResult");
+
+export class DerivedInspectionDiagnostics<
+  T,
+  C extends InspectionContext<T>,
+  P,
+> implements InspectionDiagnostics<T, C> {
+  constructor(
+    readonly parent: P,
+    readonly parentCtx: InspectionContext<P>,
+  ) {
+  }
+
+  continue(ctx: C, result: InspectionResult<T>): boolean {
+    const wrapped: WrappedInspectionResult<P> = {
+      ...result,
+      inspectionTarget: this.parent,
+      wrappedInspectionResult: result,
+    };
+    return this.parentCtx.diags.continue(this.parentCtx, wrapped);
+  }
+
+  async onIssue(
+    result: InspectionResult<T>,
     ctx: C,
-  ): void | false {
-    if (diags instanceof InspectionDiagnosticsRecorder) {
-      diags.issues.forEach((issue) => {
-        const wrapped: WrappedInspectionResult<T, W> = {
-          isInspectionResult: true,
-          inspectionTarget: o,
-          wrappedInspectionResult: issue,
-        };
-        this.onIssue(wrapped, ctx);
-      });
-      diags.exceptions.forEach((excp) => {
-        const wrapped: WrappedInspectionResult<T, W> = {
-          isInspectionResult: true,
-          inspectionTarget: o,
-          wrappedInspectionResult: excp,
-        };
-        this.onException(excp.exception, wrapped, ctx);
-      });
-    } else {
-      return false;
-    }
+  ): Promise<InspectionResult<T>> {
+    const wrapped: WrappedInspectionResult<P> = {
+      ...result,
+      inspectionTarget: this.parent,
+      wrappedInspectionResult: result,
+    };
+    await this.parentCtx.diags.onIssue(wrapped, this.parentCtx);
+    return result;
+  }
+
+  async onException(
+    err: Error,
+    result: InspectionResult<T>,
+    ctx: C,
+  ): Promise<InspectionResult<T>> {
+    const wrapped: WrappedInspectionResult<P> = {
+      ...result,
+      inspectionTarget: this.parent,
+      wrappedInspectionResult: result,
+    };
+    await this.parentCtx.diags.onException(err, wrapped, this.parentCtx);
+    return result;
   }
 }
 
@@ -245,22 +260,13 @@ export class ConsoleInspectionDiagnostics<T, C extends InspectionContext<T>, D>
     }
     return await this.wrap.onException(err, result, ctx);
   }
-
-  append<W>(
-    o: T,
-    diags: InspectionDiagnostics<W, InspectionContext<W>>,
-    ctx: C,
-  ): void | false {
-    return this.wrap.append(o, diags, ctx);
-  }
 }
 
 export function inspectionPipe<T, C extends InspectionContext<T>>(
-  outerCtx: C,
   ...inspectors: Inspector<T, InspectionContext<T>>[]
 ): InspectorInit<T, C> {
   return async (
-    ctx: C = outerCtx,
+    ctx: C,
   ): Promise<InspectionResult<T>> => {
     if (inspectors.length == 0) {
       const empty: EmptyInspectorsResult<T> = {
