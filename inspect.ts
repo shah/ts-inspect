@@ -1,6 +1,5 @@
 import {
   typeGuard,
-  typeGuardCustom,
 } from "https://raw.githubusercontent.com/shah/ts-safety/v0.2.4/guards.ts";
 import { safety } from "./deps.ts";
 
