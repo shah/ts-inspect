@@ -26,7 +26,7 @@ culpa qui officia deserunt mollit anim id est laborum.`;
         insp.InspectionContext<TestPrime>
       >(),
     },
-  ): Promise<insp.InspectionContext<TestPrime>> {
+  ): Promise<insp.InspectableOutcome<TestPrime>> {
     const ip = insp.inspectionPipe(mod.inspectWordCountRange);
 
     // derived allows "sub-inspections" that store results in the parent diags
@@ -43,7 +43,9 @@ culpa qui officia deserunt mollit anim id est laborum.`;
     ta.assert(mod.isTextInspectionIssue(shortTextResult));
 
     // we don't have any result to return so just return the context
-    return ctx;
+    return {
+      inspectionContext: ctx,
+    };
   }
 }
 
@@ -59,8 +61,8 @@ Deno.test(`word count matches expectations (direct)`, async () => {
 
 Deno.test(`word count does not match expectations (direct)`, async () => {
   const prime = new TestPrime();
-  const ctx = await prime.inspect();
-  const diags = ctx.diags;
+  const outcome = await prime.inspect();
+  const diags = outcome.inspectionContext.diags;
 
   ta.assert(insp.isInspectionIssuesTracker(diags));
   ta.assert(insp.isInspectionExceptionsTracker(diags));

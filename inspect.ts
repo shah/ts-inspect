@@ -12,18 +12,9 @@ export interface Inspectable<T> {
   readonly inspect: (
     target?: T,
     ctx?: InspectionContext<T>,
-  ) => Promise<
-    | InspectionIssuesTracker<T>
-    | InspectionExceptionsTracker<T>
-    | InspectionIssuesTracker<T> & InspectionExceptionsTracker<T>
-    | InspectionContext<T>
-    | InspectableOutcome<T>
-  >;
+  ) => Promise<InspectableOutcome<T>>;
 }
 
-export const isInspectableOutcome = typeGuard<InspectableOutcome<unknown>>(
-  "inspectionContext",
-);
 export const isInspectable = typeGuard<Inspectable<unknown>>("inspect");
 
 export interface InspectionContext<T> {
