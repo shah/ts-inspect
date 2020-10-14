@@ -1,7 +1,10 @@
+import {
+  typeGuard,
+  typeGuardCustom,
+} from "https://raw.githubusercontent.com/shah/ts-safety/v0.2.4/guards.ts";
 import { safety } from "./deps.ts";
 
 export interface InspectionContext<T> {
-  readonly inspectionTarget: T;
   readonly diags: InspectionDiagnostics<T, InspectionContext<T>>;
 }
 
@@ -9,6 +12,18 @@ export interface InspectionResult<T> {
   readonly isInspectionResult: true;
   readonly inspectionTarget: T;
 }
+
+export function isSuccessfulInspection<T>(o: InspectionResult<T>): boolean {
+  return !isInspectionIssue(o) && !isInspectionException(o);
+}
+
+export interface EmptyInspectorsResult<T> extends InspectionResult<T> {
+  readonly isEmptyInspectorsResult: true;
+}
+
+export const isEmptyInspectors = typeGuard<EmptyInspectorsResult<unknown>>(
+  "isEmptyInspectorsResult",
+);
 
 export interface DiagnosableInspectionResult<T> {
   readonly inspectionDiagnostic: T;
@@ -23,33 +38,6 @@ export function isDiagnosableInspectionResult<T>(
 export const isDiagnosableInspectionResultUntyped = safety.typeGuard<
   DiagnosableInspectionResult<unknown>
 >("inspectionDiagnostic");
-
-export interface SuccessfulInspection<T> extends InspectionResult<T> {
-  readonly isSuccessfulInspection: true;
-}
-
-export function isSuccessfulInspection<T>(
-  o: InspectionResult<unknown>,
-): o is SuccessfulInspection<T> {
-  return isSuccessfulInspectionUntyped(o);
-}
-
-export const isSuccessfulInspectionUntyped = safety.typeGuardCustom<
-  InspectionResult<unknown>,
-  SuccessfulInspection<unknown>
->("isSuccessfulInspection");
-
-export function successfulInspection<T>(o: T): SuccessfulInspection<T> {
-  return {
-    isInspectionResult: true,
-    isSuccessfulInspection: true,
-    inspectionTarget: o,
-  };
-}
-
-export interface EmptyInspectorsResult<T> extends SuccessfulInspection<T> {
-  readonly isEmptyInspectors: true;
-}
 
 export interface InspectionIssue<T> extends InspectionResult<T> {
   readonly isInspectionIssue: true;
@@ -117,14 +105,11 @@ export interface InspectionDiagnostics<T, C extends InspectionContext<T>> {
 }
 
 export interface Inspector<T, C extends InspectionContext<T>> {
-  (
-    ctx: C,
-    active: InspectionResult<T>,
-  ): Promise<InspectionResult<T>>;
+  (ctx: C, ir: InspectionResult<T>): Promise<InspectionResult<T>>;
 }
 
-export interface InspectorInit<T, C extends InspectionContext<T>> {
-  (ctx: C): Promise<InspectionResult<T>>;
+export interface InspectionPipe<T, C extends InspectionContext<T>> {
+  (ctx: C, inspectionTarget: T): Promise<InspectionResult<T>>;
 }
 
 export class InspectionDiagnosticsRecorder<T, C extends InspectionContext<T>>
@@ -264,23 +249,23 @@ export class ConsoleInspectionDiagnostics<T, C extends InspectionContext<T>, D>
 
 export function inspectionPipe<T, C extends InspectionContext<T>>(
   ...inspectors: Inspector<T, InspectionContext<T>>[]
-): InspectorInit<T, C> {
+): InspectionPipe<T, C> {
   return async (
     ctx: C,
+    inspectionTarget: T,
   ): Promise<InspectionResult<T>> => {
     if (inspectors.length == 0) {
       const empty: EmptyInspectorsResult<T> = {
         isInspectionResult: true,
-        isSuccessfulInspection: true,
-        isEmptyInspectors: true,
-        inspectionTarget: ctx.inspectionTarget,
+        isEmptyInspectorsResult: true,
+        inspectionTarget: inspectionTarget,
       };
       return empty;
     }
 
     let result: InspectionResult<T> = {
       isInspectionResult: true,
-      inspectionTarget: ctx.inspectionTarget,
+      inspectionTarget: inspectionTarget,
     };
     for (const inspect of inspectors) {
       try {

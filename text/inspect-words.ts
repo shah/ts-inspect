@@ -19,15 +19,14 @@ export async function inspectWordCountRange(
   active: itxt.TextInspectionResult,
 ): Promise<
   | itxt.TextInspectionResult
-  | itxt.SuccessfulTextInspection
   | itxt.TextInspectionIssue
 > {
   const it = active.inspectionTarget;
   const text = it.text;
   if (!text || text.length == 0) {
     return it.onNoTextAvailable
-      ? it.onNoTextAvailable()
-      : itxt.textInspectionSuccess(it);
+      ? it.onNoTextAvailable(active)
+      : it.onNoIssues(active);
   }
   const tw = words(it);
   if (!tw) {
@@ -44,7 +43,7 @@ export async function inspectWordCountRange(
       `Word count should be between ${min}-${max} (not ${tw.wordCount})`,
     );
   }
-  return itxt.textInspectionSuccess(it);
+  return it.onNoIssues(active);
 }
 
 export interface TextWords {

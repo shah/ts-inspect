@@ -5,15 +5,14 @@ export async function inspectWebsiteURL(
   active: itxt.TextInspectionResult,
 ): Promise<
   | itxt.TextInspectionResult
-  | itxt.SuccessfulTextInspection
   | itxt.TextInspectionIssue
 > {
   const it = active.inspectionTarget;
   const url = it.text;
   if (!url || url.length == 0) {
     return it.onNoTextAvailable
-      ? it.onNoTextAvailable()
-      : itxt.textInspectionSuccess(it);
+      ? it.onNoTextAvailable(active)
+      : it.onNoIssues(active);
   }
 
   try {
@@ -32,5 +31,5 @@ export async function inspectWebsiteURL(
     );
   }
 
-  return itxt.textInspectionSuccess(it);
+  return it.onNoIssues(active);
 }

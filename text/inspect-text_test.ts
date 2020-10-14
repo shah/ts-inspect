@@ -20,41 +20,35 @@ culpa qui officia deserunt mollit anim id est laborum.`;
 }
 
 Deno.test(`word count matches expectations (direct)`, async () => {
-  const ctx = new mod.TypicalTextInspectionContext(goodText);
+  const ctx = new mod.TypicalTextInspectionContext();
   const ip = insp.inspectionPipe(mod.inspectWordCountRange);
-  const result = await ip(ctx);
+  const result = await ip(ctx, mod.textInspectionTarget(goodText));
 
   ta.assert(mod.isSuccessfulTextInspection(result));
   ta.assertEquals(ctx.diags.issues.length, 0);
   ta.assertEquals(ctx.diags.exceptions.length, 0);
 });
 
-Deno.test(`word count doest not match expectations (direct)`, async () => {
+Deno.test(`word count does not match expectations (direct)`, async () => {
   const diags = new insp.InspectionDiagnosticsRecorder<
     TestPrime,
     insp.InspectionContext<TestPrime>
   >();
   const ctx: insp.InspectionContext<TestPrime> = {
-    inspectionTarget: new TestPrime(),
     diags: diags,
   };
 
+  const prime = new TestPrime();
   const ip = insp.inspectionPipe(mod.inspectWordCountRange);
 
   // derived allows "sub-inspections" that store results in the parent diags
   const longTextResult = await ip(
-    new mod.DerivedTextInspectionContext(
-      ctx.inspectionTarget,
-      ctx,
-      ctx.inspectionTarget.longText,
-    ),
+    new mod.DerivedTextInspectionContext(prime, ctx),
+    mod.textInspectionTarget(prime.longText),
   );
   const shortTextResult = await ip(
-    new mod.DerivedTextInspectionContext(
-      ctx.inspectionTarget,
-      ctx,
-      ctx.inspectionTarget.shortText,
-    ),
+    new mod.DerivedTextInspectionContext(prime, ctx),
+    mod.textInspectionTarget(prime.shortText),
   );
 
   ta.assertEquals(diags.issues.length, 2);
@@ -81,8 +75,8 @@ Deno.test(`word count doest not match expectations (direct)`, async () => {
 
 Deno.test(`invalid website`, async () => {
   const ip = insp.inspectionPipe(mod.inspectWebsiteURL);
-  const ctx = new mod.TypicalTextInspectionContext("htps://bad.com/url");
-  const result = await ip(ctx);
+  const ctx = new mod.TypicalTextInspectionContext();
+  const result = await ip(ctx, mod.textInspectionTarget("htps://bad.com/url"));
 
   ta.assert(mod.isTextInspectionIssue(result));
   ta.assertEquals(ctx.diags.issues.length, 1);

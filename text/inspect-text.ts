@@ -8,15 +8,14 @@ export interface TextInspectionResult
 
 export interface TextContentSupplier {
   readonly text: string;
-  readonly onNoTextAvailable?: () => insp.InspectionResult<TextContentSupplier>;
+  readonly onNoIssues: (
+    active: TextInspectionResult,
+  ) => TextInspectionResult;
+  readonly onNoTextAvailable?: (
+    active: TextInspectionResult,
+  ) => TextInspectionResult;
 }
 
-// deno-lint-ignore no-empty-interface
-export interface SuccessfulTextInspection
-  extends insp.SuccessfulInspection<TextContentSupplier> {
-}
-
-export const textInspectionSuccess = insp.successfulInspection;
 export const isSuccessfulTextInspection = insp.isSuccessfulInspection;
 
 export interface TextInspectionIssue
@@ -39,29 +38,32 @@ export interface TextInspectionContext
   extends insp.InspectionContext<TextContentSupplier> {
 }
 
+export function textInspectionTarget(
+  content: string,
+  sanitize?: safety.TransformerSync<
+    TextSanitizerContext,
+    string | TextContentSupplier
+  >,
+): TextContentSupplier {
+  const sanitized = sanitize ? sanitize.transform(content) : content;
+  return typeof sanitized == "string"
+    ? {
+      text: sanitized,
+      onNoIssues: (active: TextInspectionResult) => {
+        return active;
+      },
+    }
+    : sanitized;
+}
+
 export class TypicalTextInspectionContext implements TextInspectionContext {
-  readonly inspectionTarget: TextContentSupplier;
   readonly diags = new insp.InspectionDiagnosticsRecorder<
     TextContentSupplier,
     TextInspectionContext
   >();
-
-  constructor(
-    content: string | TextContentSupplier,
-    sanitize?: safety.TransformerSync<
-      TextSanitizerContext,
-      string | TextContentSupplier
-    >,
-  ) {
-    const sanitized = sanitize ? sanitize.transform(content) : content;
-    this.inspectionTarget = typeof sanitized == "string"
-      ? { text: sanitized }
-      : sanitized;
-  }
 }
 
 export class DerivedTextInspectionContext<P> implements TextInspectionContext {
-  readonly inspectionTarget: TextContentSupplier;
   readonly diags: insp.InspectionDiagnostics<
     TextContentSupplier,
     TextInspectionContext
@@ -70,16 +72,7 @@ export class DerivedTextInspectionContext<P> implements TextInspectionContext {
   constructor(
     parent: P,
     parentCtx: insp.InspectionContext<P>,
-    content: string | TextContentSupplier,
-    sanitize?: safety.TransformerSync<
-      TextSanitizerContext,
-      string | TextContentSupplier
-    >,
   ) {
-    const sanitized = sanitize ? sanitize.transform(content) : content;
-    this.inspectionTarget = typeof sanitized == "string"
-      ? { text: sanitized }
-      : sanitized;
     this.diags = new insp.DerivedInspectionDiagnostics(parent, parentCtx);
   }
 }
