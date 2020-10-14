@@ -3,6 +3,29 @@ import {
 } from "https://raw.githubusercontent.com/shah/ts-safety/v0.2.4/guards.ts";
 import { safety } from "./deps.ts";
 
+export interface InspectableOutcome<T> {
+  readonly inspectionContext: InspectionContext<T>;
+  readonly inspectionResult?: InspectionResult<T>;
+}
+
+export interface Inspectable<T> {
+  readonly inspect: (
+    target?: T,
+    ctx?: InspectionContext<T>,
+  ) => Promise<
+    | InspectionIssuesTracker<T>
+    | InspectionExceptionsTracker<T>
+    | InspectionIssuesTracker<T> & InspectionExceptionsTracker<T>
+    | InspectionContext<T>
+    | InspectableOutcome<T>
+  >;
+}
+
+export const isInspectableOutcome = typeGuard<InspectableOutcome<unknown>>(
+  "inspectionContext",
+);
+export const isInspectable = typeGuard<Inspectable<unknown>>("inspect");
+
 export interface InspectionContext<T> {
   readonly diags: InspectionDiagnostics<T, InspectionContext<T>>;
 }
@@ -90,17 +113,33 @@ export interface ContentIssueDiagnostic {
   readonly message: string;
 }
 
+export interface InspectionIssuesTracker<T> {
+  readonly inspectionIssues: InspectionIssue<T>[];
+}
+
+export const isInspectionIssuesTracker = typeGuard<
+  InspectionIssuesTracker<unknown>
+>("inspectionIssues");
+
+export interface InspectionExceptionsTracker<T> {
+  readonly inspectionExceptions: InspectionException<T>[];
+}
+
+export const isInspectionExceptionsTracker = typeGuard<
+  InspectionExceptionsTracker<unknown>
+>("inspectionExceptions");
+
 export interface InspectionDiagnostics<T, C extends InspectionContext<T>> {
-  onIssue: (
+  readonly onIssue: (
     result: InspectionResult<T>,
     ctx: C,
   ) => Promise<InspectionResult<T>>;
-  onException: (
+  readonly onException: (
     err: Error,
     result: InspectionResult<T>,
     ctx: C,
   ) => Promise<InspectionResult<T>>;
-  continue: (ctx: C, result: InspectionResult<T>) => boolean;
+  readonly continue: (ctx: C, result: InspectionResult<T>) => boolean;
 }
 
 export interface Inspector<T, C extends InspectionContext<T>> {
@@ -112,9 +151,12 @@ export interface InspectionPipe<T, C extends InspectionContext<T>> {
 }
 
 export class InspectionDiagnosticsRecorder<T, C extends InspectionContext<T>>
-  implements InspectionDiagnostics<T, C> {
-  readonly issues: InspectionIssue<T>[] = [];
-  readonly exceptions: InspectionException<T>[] = [];
+  implements
+    InspectionDiagnostics<T, C>,
+    InspectionIssuesTracker<T>,
+    InspectionExceptionsTracker<T> {
+  readonly inspectionIssues: InspectionIssue<T>[] = [];
+  readonly inspectionExceptions: InspectionException<T>[] = [];
 
   continue(ctx: C, result: InspectionResult<T>): boolean {
     if (isInspectionIssueRecoverable(result)) return true;
@@ -132,7 +174,7 @@ export class InspectionDiagnosticsRecorder<T, C extends InspectionContext<T>>
       ...result,
       isInspectionIssue: true,
     };
-    this.issues.push(issue);
+    this.inspectionIssues.push(issue);
     return issue;
   }
 
@@ -147,7 +189,7 @@ export class InspectionDiagnosticsRecorder<T, C extends InspectionContext<T>>
       isInspectionException: true,
       exception: err,
     };
-    this.exceptions.push(exception);
+    this.inspectionExceptions.push(exception);
     return exception;
   }
 }
