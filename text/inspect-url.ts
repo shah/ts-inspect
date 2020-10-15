@@ -17,7 +17,6 @@ export async function inspectWebsiteURL(
 
   try {
     const urlFetch = await fetch(url);
-    console.dir(urlFetch);
     if (urlFetch.status != 200) {
       return itxt.textIssue(
         it,
