@@ -10,7 +10,9 @@ export interface Inspectable<T> {
   ) => Promise<InspectionContext<T>>;
 }
 
-export const isInspectable = typeGuard<Inspectable<unknown>>("inspect");
+export function isInspectable<T extends Inspectable<T>>(o: unknown): o is T {
+  return typeGuard<T>("inspect")(o);
+}
 
 export interface InspectionContext<T> {
   readonly inspectionDiags: InspectionDiagnostics<T, InspectionContext<T>>;
@@ -45,32 +47,33 @@ export interface EmptyInspectorsResult<T> extends InspectionResult<T> {
   readonly isEmptyInspectorsResult: true;
 }
 
-export const isEmptyInspectors = typeGuard<EmptyInspectorsResult<unknown>>(
-  "isEmptyInspectorsResult",
-);
+export function isEmptyInspectors<T extends EmptyInspectorsResult<T>>(
+  o: unknown,
+): o is T {
+  return typeGuard<T>("isEmptyInspectorsResult")(o);
+}
 
 export interface DiagnosableInspectionResult<T> {
   readonly inspectionDiagnostic: T;
 }
 
-export function isDiagnosableInspectionResult<T>(
-  o: unknown,
-): o is DiagnosableInspectionResult<T> {
-  return isDiagnosableInspectionResultUntyped(o);
+export function isDiagnosableInspectionResult<
+  T extends DiagnosableInspectionResult<T>,
+>(o: unknown): o is T {
+  return typeGuard<T>("inspectionDiagnostic")(o);
 }
-
-export const isDiagnosableInspectionResultUntyped = safety.typeGuard<
-  DiagnosableInspectionResult<unknown>
->("inspectionDiagnostic");
 
 export interface InspectionIssue<T> extends InspectionResult<T> {
   readonly isInspectionIssue: true;
 }
 
-export const isInspectionIssue = safety.typeGuardCustom<
-  InspectionResult<unknown>,
-  InspectionIssue<unknown>
->("isInspectionIssue");
+export function isInspectionIssue<T>(
+  o: InspectionResult<T>,
+): o is InspectionIssue<T> {
+  return safety.typeGuardCustom<InspectionResult<T>, InspectionIssue<T>>(
+    "isInspectionIssue",
+  )(o);
+}
 
 export function inspectionIssue<T, D>(
   o: T,
@@ -106,30 +109,33 @@ export interface InspectionException<T> extends InspectionIssue<T> {
   readonly exception: Error;
 }
 
-export const isInspectionException = safety.typeGuardCustom<
-  InspectionResult<unknown>,
-  InspectionException<unknown>
->("isInspectionException");
-
-export interface ContentIssueDiagnostic {
-  readonly message: string;
+export function isInspectionException<T>(
+  o: InspectionResult<T>,
+): o is InspectionException<T> {
+  return safety.typeGuardCustom<InspectionResult<T>, InspectionException<T>>(
+    "isInspectionException",
+  )(o);
 }
 
 export interface InspectionIssuesTracker<T> {
   readonly inspectionIssues: InspectionIssue<T>[];
 }
 
-export const isInspectionIssuesTracker = typeGuard<
-  InspectionIssuesTracker<unknown>
->("inspectionIssues");
+export function isInspectionIssuesTracker<
+  T extends InspectionIssuesTracker<T>,
+>(o: unknown): o is T {
+  return typeGuard<T>("inspectionIssues")(o);
+}
 
 export interface InspectionExceptionsTracker<T> {
   readonly inspectionExceptions: InspectionException<T>[];
 }
 
-export const isInspectionExceptionsTracker = typeGuard<
-  InspectionExceptionsTracker<unknown>
->("inspectionExceptions");
+export function isInspectionExceptionsTracker<
+  T extends InspectionExceptionsTracker<T>,
+>(o: unknown): o is T {
+  return typeGuard<T>("inspectionExceptions")(o);
+}
 
 export interface InspectionDiagnostics<T, C extends InspectionContext<T>> {
   readonly onIssue: (
@@ -200,9 +206,11 @@ export interface WrappedInspectionResult<P> extends InspectionResult<P> {
   readonly wrappedInspectionResult: InspectionResult<unknown>;
 }
 
-export const isWrappedInspectionResult = safety.typeGuard<
-  WrappedInspectionResult<unknown>
->("wrappedInspectionResult");
+export function isWrappedInspectionResult<
+  P extends WrappedInspectionResult<P>,
+>(o: unknown): o is P {
+  return typeGuard<P>("wrappedInspectionResult")(o);
+}
 
 export class DerivedInspectionDiagnostics<
   T,
@@ -272,7 +280,7 @@ export class ConsoleInspectionDiagnostics<T, C extends InspectionContext<T>, D>
     result: InspectionResult<T>,
     ctx: C,
   ): Promise<InspectionResult<T>> {
-    if (this.verbose && isDiagnosableInspectionResult<D>(result)) {
+    if (this.verbose && isDiagnosableInspectionResult(result)) {
       console.error(result.inspectionDiagnostic);
     }
     return await this.wrap.onIssue(result, ctx);
@@ -284,7 +292,7 @@ export class ConsoleInspectionDiagnostics<T, C extends InspectionContext<T>, D>
     ctx: C,
   ): Promise<InspectionResult<T>> {
     if (this.verbose) {
-      if (isDiagnosableInspectionResult<D>(result)) {
+      if (isDiagnosableInspectionResult(result)) {
         console.error(result.inspectionDiagnostic);
       } else {
         console.error(err);
