@@ -3,22 +3,33 @@ import {
 } from "https://raw.githubusercontent.com/shah/ts-safety/v0.2.4/guards.ts";
 import { safety } from "./deps.ts";
 
-export interface InspectableOutcome<T> {
-  readonly inspectionContext: InspectionContext<T>;
-  readonly inspectionResult?: InspectionResult<T>;
-}
-
 export interface Inspectable<T> {
   readonly inspect: (
     target?: T,
     ctx?: InspectionContext<T>,
-  ) => Promise<InspectableOutcome<T>>;
+  ) => Promise<InspectionContext<T>>;
 }
 
 export const isInspectable = typeGuard<Inspectable<unknown>>("inspect");
 
 export interface InspectionContext<T> {
-  readonly diags: InspectionDiagnostics<T, InspectionContext<T>>;
+  readonly inspectionDiags: InspectionDiagnostics<T, InspectionContext<T>>;
+}
+
+export function isInspectionDiagnosticsSupplier<
+  T extends InspectionContext<T>,
+>(o: unknown): o is T {
+  return typeGuard<T>("inspectionDiags")(o);
+}
+
+export interface InspectionResultSupplier<T> {
+  readonly inspectionResult: T;
+}
+
+export function isInspectionResultSupplier<
+  T extends InspectionResultSupplier<T>,
+>(o: unknown): o is T {
+  return typeGuard<T>("inspectionResult")(o);
 }
 
 export interface InspectionResult<T> {
@@ -210,7 +221,7 @@ export class DerivedInspectionDiagnostics<
       inspectionTarget: this.parent,
       wrappedInspectionResult: result,
     };
-    return this.parentCtx.diags.continue(this.parentCtx, wrapped);
+    return this.parentCtx.inspectionDiags.continue(this.parentCtx, wrapped);
   }
 
   async onIssue(
@@ -222,7 +233,7 @@ export class DerivedInspectionDiagnostics<
       inspectionTarget: this.parent,
       wrappedInspectionResult: result,
     };
-    await this.parentCtx.diags.onIssue(wrapped, this.parentCtx);
+    await this.parentCtx.inspectionDiags.onIssue(wrapped, this.parentCtx);
     return result;
   }
 
@@ -236,7 +247,11 @@ export class DerivedInspectionDiagnostics<
       inspectionTarget: this.parent,
       wrappedInspectionResult: result,
     };
-    await this.parentCtx.diags.onException(err, wrapped, this.parentCtx);
+    await this.parentCtx.inspectionDiags.onException(
+      err,
+      wrapped,
+      this.parentCtx,
+    );
     return result;
   }
 }
@@ -303,19 +318,19 @@ export function inspectionPipe<T, C extends InspectionContext<T>>(
       try {
         result = await inspect(ctx, result);
         if (isInspectionException(result)) {
-          result = await ctx.diags.onException(
+          result = await ctx.inspectionDiags.onException(
             result.exception,
             result,
             ctx,
           );
-          if (!ctx.diags.continue(ctx, result)) return result;
+          if (!ctx.inspectionDiags.continue(ctx, result)) return result;
         } else if (isInspectionIssue(result)) {
-          result = await ctx.diags.onIssue(result, ctx);
-          if (!ctx.diags.continue(ctx, result)) return result;
+          result = await ctx.inspectionDiags.onIssue(result, ctx);
+          if (!ctx.inspectionDiags.continue(ctx, result)) return result;
         }
       } catch (innerErr) {
-        result = await ctx.diags.onException(innerErr, result, ctx);
-        if (!ctx.diags.continue(ctx, result)) return result;
+        result = await ctx.inspectionDiags.onException(innerErr, result, ctx);
+        if (!ctx.inspectionDiags.continue(ctx, result)) return result;
       }
     }
     return result;

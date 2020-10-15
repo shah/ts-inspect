@@ -21,12 +21,12 @@ culpa qui officia deserunt mollit anim id est laborum.`;
   async inspect(
     target: TestPrime = this,
     ctx: insp.InspectionContext<TestPrime> = {
-      diags: new insp.InspectionDiagnosticsRecorder<
+      inspectionDiags: new insp.InspectionDiagnosticsRecorder<
         TestPrime,
         insp.InspectionContext<TestPrime>
       >(),
     },
-  ): Promise<insp.InspectableOutcome<TestPrime>> {
+  ): Promise<insp.InspectionContext<TestPrime>> {
     const ip = insp.inspectionPipe(mod.inspectWordCountRange);
 
     // derived allows "sub-inspections" that store results in the parent diags
@@ -42,10 +42,7 @@ culpa qui officia deserunt mollit anim id est laborum.`;
     );
     ta.assert(mod.isTextInspectionIssue(shortTextResult));
 
-    // we don't have any result to return so just return the context
-    return {
-      inspectionContext: ctx,
-    };
+    return ctx;
   }
 }
 
@@ -55,14 +52,14 @@ Deno.test(`word count matches expectations (direct)`, async () => {
   const result = await ip(ctx, mod.textInspectionTarget(goodText));
 
   ta.assert(mod.isSuccessfulTextInspection(result));
-  ta.assertEquals(ctx.diags.inspectionIssues.length, 0);
-  ta.assertEquals(ctx.diags.inspectionExceptions.length, 0);
+  ta.assertEquals(ctx.inspectionDiags.inspectionIssues.length, 0);
+  ta.assertEquals(ctx.inspectionDiags.inspectionExceptions.length, 0);
 });
 
 Deno.test(`word count does not match expectations (direct)`, async () => {
   const prime = new TestPrime();
   const outcome = await prime.inspect();
-  const diags = outcome.inspectionContext.diags;
+  const diags = outcome.inspectionDiags;
 
   ta.assert(insp.isInspectionIssuesTracker(diags));
   ta.assert(insp.isInspectionExceptionsTracker(diags));
@@ -93,10 +90,10 @@ Deno.test(`invalid website`, async () => {
   const result = await ip(ctx, mod.textInspectionTarget("htps://bad.com/url"));
 
   ta.assert(mod.isTextInspectionIssue(result));
-  ta.assertEquals(ctx.diags.inspectionIssues.length, 1);
-  ta.assertEquals(ctx.diags.inspectionExceptions.length, 0);
+  ta.assertEquals(ctx.inspectionDiags.inspectionIssues.length, 1);
+  ta.assertEquals(ctx.inspectionDiags.inspectionExceptions.length, 0);
 
-  const issue = ctx.diags.inspectionIssues[0];
+  const issue = ctx.inspectionDiags.inspectionIssues[0];
   ta.assert(mod.isDiagnosableTextInspectionIssue(issue));
   ta.assertEquals(
     issue.inspectionDiagnostic,

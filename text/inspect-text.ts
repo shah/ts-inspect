@@ -57,14 +57,14 @@ export function textInspectionTarget(
 }
 
 export class TypicalTextInspectionContext implements TextInspectionContext {
-  readonly diags = new insp.InspectionDiagnosticsRecorder<
+  readonly inspectionDiags = new insp.InspectionDiagnosticsRecorder<
     TextContentSupplier,
     TextInspectionContext
   >();
 }
 
 export class DerivedTextInspectionContext<P> implements TextInspectionContext {
-  readonly diags: insp.InspectionDiagnostics<
+  readonly inspectionDiags: insp.InspectionDiagnostics<
     TextContentSupplier,
     TextInspectionContext
   >;
@@ -73,7 +73,10 @@ export class DerivedTextInspectionContext<P> implements TextInspectionContext {
     parent: P,
     parentCtx: insp.InspectionContext<P>,
   ) {
-    this.diags = new insp.DerivedInspectionDiagnostics(parent, parentCtx);
+    this.inspectionDiags = new insp.DerivedInspectionDiagnostics(
+      parent,
+      parentCtx,
+    );
   }
 }
 
