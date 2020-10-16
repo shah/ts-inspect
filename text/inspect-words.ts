@@ -3,39 +3,41 @@ import * as itxt from "./inspect-text.ts";
 
 export const wordsInTextRegEx = /[^\s]+/g;
 
-export interface InspectWordCountRangeContext
-  extends itxt.TextInspectionContext {
+export interface InspectWordCountRangeOptions
+  extends itxt.TextInspectionOptions {
   readonly minWords: number;
   readonly maxWords: number;
 }
 
-export const isInspectWordCountRangeContext = safety.typeGuardCustom<
-  itxt.TextInspectionContext,
-  InspectWordCountRangeContext
+export const isInspectWordCountRangeOptions = safety.typeGuard<
+  InspectWordCountRangeOptions
 >("minWords", "maxWords");
 
 export async function inspectWordCountRange(
-  ctx: itxt.TextInspectionContext,
-  active: itxt.TextInspectionResult,
+  target: itxt.TextContentSupplier | itxt.TextInspectionResult,
+  diags?: { options?: itxt.TextInspectionOptions },
 ): Promise<
+  | itxt.TextContentSupplier
   | itxt.TextInspectionResult
   | itxt.TextInspectionIssue
 > {
-  const it = active.inspectionTarget;
+  const it: itxt.TextContentSupplier = itxt.isTextInspectionResult(target)
+    ? target.inspectionTarget
+    : target;
   const text = it.text;
   if (!text || text.length == 0) {
     return it.onNoTextAvailable
-      ? it.onNoTextAvailable(active)
-      : it.onNoIssues(active);
+      ? it.onNoTextAvailable(target)
+      : it.onNoIssues(target);
   }
   const tw = words(it);
   if (!tw) {
     return itxt.textIssue(it, "Unable to count words");
   }
   let [min, max] = [10, 15];
-  if (isInspectWordCountRangeContext(ctx)) {
-    min = ctx.minWords;
-    max = ctx.maxWords;
+  if (diags && isInspectWordCountRangeOptions(diags)) {
+    min = diags.minWords;
+    max = diags.maxWords;
   }
   if (tw.wordCount > max || tw.wordCount < min) {
     return itxt.textIssue(
@@ -43,7 +45,7 @@ export async function inspectWordCountRange(
       `Word count should be between ${min}-${max} (not ${tw.wordCount})`,
     );
   }
-  return it.onNoIssues(active);
+  return it.onNoIssues(target);
 }
 
 export interface TextWords {

@@ -6,7 +6,7 @@ const goodText =
   `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
 eiusmod tempor.`;
 
-class TestPrime implements insp.Inspectable<TestPrime> {
+class TestPrime {
   readonly longText =
     `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
 eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
@@ -18,60 +18,50 @@ culpa qui officia deserunt mollit anim id est laborum.`;
 
   readonly shortText = `Lorem ipsum dolor sit amet, consectetur adipiscing`;
 
-  async inspect(
-    target: TestPrime = this,
-    ctx: insp.InspectionContext<TestPrime> = {
-      inspectionDiags: new insp.InspectionDiagnosticsRecorder<
-        TestPrime,
-        insp.InspectionContext<TestPrime>
-      >(),
-    },
-  ): Promise<insp.InspectionContext<TestPrime>> {
-    const ip = insp.inspectionPipe(mod.inspectWordCountRange);
+  async inspect(): Promise<
+    insp.InspectionDiagnosticsRecorder<TestPrime, string>
+  > {
+    const diags = new insp.InspectionDiagnosticsRecorder<TestPrime, string>();
+    const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
 
     // derived allows "sub-inspections" that store results in the parent diags
     const longTextResult = await ip(
-      new mod.DerivedTextInspectionContext(target || this, ctx),
-      mod.textInspectionTarget(target.longText),
+      mod.textInspectionTarget(this.longText),
+      new mod.DerivedTextInspectionDiags<TestPrime>(this, diags),
     );
     ta.assert(mod.isTextInspectionIssue(longTextResult));
 
     const shortTextResult = await ip(
-      new mod.DerivedTextInspectionContext(target || this, ctx),
-      mod.textInspectionTarget(target.shortText),
+      mod.textInspectionTarget(this.shortText),
+      new mod.DerivedTextInspectionDiags<TestPrime>(this, diags),
     );
     ta.assert(mod.isTextInspectionIssue(shortTextResult));
 
-    return ctx;
+    return diags;
   }
 }
 
 Deno.test(`word count matches expectations (direct)`, async () => {
-  const ctx = new mod.TypicalTextInspectionContext();
-  const ip = insp.inspectionPipe(mod.inspectWordCountRange);
-  const result = await ip(ctx, mod.textInspectionTarget(goodText));
+  const diags = new mod.TypicalTextInspectionDiags();
+  const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
+  const result = await ip(mod.textInspectionTarget(goodText), diags);
 
   ta.assert(mod.isSuccessfulTextInspection(result));
-  ta.assertEquals(ctx.inspectionDiags.inspectionIssues.length, 0);
-  ta.assertEquals(ctx.inspectionDiags.inspectionExceptions.length, 0);
+  ta.assertEquals(diags.inspectionIssues.length, 0);
 });
 
 Deno.test(`word count does not match expectations (direct)`, async () => {
   const prime = new TestPrime();
-  const outcome = await prime.inspect();
-  const diags = outcome.inspectionDiags;
+  const diags = await prime.inspect();
 
   ta.assert(insp.isInspectionIssuesTracker(diags));
-  ta.assert(insp.isInspectionExceptionsTracker(diags));
-
   ta.assertEquals(diags.inspectionIssues.length, 2);
-  ta.assertEquals(diags.inspectionExceptions.length, 0);
 
   const longTextIssue = diags.inspectionIssues[0];
   ta.assert(insp.isWrappedInspectionResult(longTextIssue));
   ta.assert(mod.isDiagnosableTextInspectionIssue(longTextIssue));
   ta.assertEquals(
-    longTextIssue.inspectionDiagnostic,
+    longTextIssue.diagnostic,
     "Word count should be between 10-15 (not 69)",
   );
 
@@ -79,24 +69,26 @@ Deno.test(`word count does not match expectations (direct)`, async () => {
   ta.assert(insp.isWrappedInspectionResult(shortTextIssue));
   ta.assert(mod.isDiagnosableTextInspectionIssue(shortTextIssue));
   ta.assertEquals(
-    shortTextIssue.inspectionDiagnostic,
+    shortTextIssue.diagnostic,
     "Word count should be between 10-15 (not 7)",
   );
 });
 
 Deno.test(`invalid website`, async () => {
-  const ip = insp.inspectionPipe(mod.inspectWebsiteURL);
-  const ctx = new mod.TypicalTextInspectionContext();
-  const result = await ip(ctx, mod.textInspectionTarget("htps://bad.com/url"));
+  const ip = mod.textInspectionPipe(mod.inspectWebsiteURL);
+  const diags = new mod.TypicalTextInspectionDiags();
+  const result = await ip(
+    mod.textInspectionTarget("htps://bad.com/url"),
+    diags,
+  );
 
   ta.assert(mod.isTextInspectionIssue(result));
-  ta.assertEquals(ctx.inspectionDiags.inspectionIssues.length, 1);
-  ta.assertEquals(ctx.inspectionDiags.inspectionExceptions.length, 0);
+  ta.assertEquals(diags.inspectionIssues.length, 1);
 
-  const issue = ctx.inspectionDiags.inspectionIssues[0];
+  const issue = diags.inspectionIssues[0];
   ta.assert(mod.isDiagnosableTextInspectionIssue(issue));
   ta.assertEquals(
-    issue.inspectionDiagnostic,
+    issue.diagnostic,
     "Exception while trying to fetch htps://bad.com/url: TypeError: scheme 'htps' not supported",
   );
 });
