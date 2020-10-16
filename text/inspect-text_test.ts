@@ -41,7 +41,7 @@ culpa qui officia deserunt mollit anim id est laborum.`;
   }
 }
 
-Deno.test(`word count matches expectations (direct)`, async () => {
+Deno.test(`word count matches expectations (pipe with diagnostics)`, async () => {
   const diags = new mod.TypicalTextInspectionDiags();
   const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
   const result = await ip(mod.textInspectionTarget(goodText), diags);
@@ -50,7 +50,17 @@ Deno.test(`word count matches expectations (direct)`, async () => {
   ta.assertEquals(diags.inspectionIssues.length, 0);
 });
 
-Deno.test(`word count does not match expectations (direct)`, async () => {
+Deno.test(`word count matches expectations (without pipe, no diagnostics)`, async () => {
+  const supplier = mod.textInspectionTarget(goodText);
+  const result = await mod.inspectWordCountRange(supplier);
+  ta.assertEquals(
+    result,
+    supplier,
+    "Since there were no errors, the result should be the same as the input",
+  );
+});
+
+Deno.test(`word count does not match expectations (pipe with diagnostics)`, async () => {
   const prime = new TestPrime();
   const diags = await prime.inspect();
 
@@ -74,7 +84,7 @@ Deno.test(`word count does not match expectations (direct)`, async () => {
   );
 });
 
-Deno.test(`invalid website`, async () => {
+Deno.test(`invalid website (pipe with diagnostics)`, async () => {
   const ip = mod.textInspectionPipe(mod.inspectWebsiteURL);
   const diags = new mod.TypicalTextInspectionDiags();
   const result = await ip(
