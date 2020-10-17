@@ -109,6 +109,9 @@ export interface InspectionDiagnostics<T, D, E extends Error = Error> {
     target: T | InspectionResult<T>,
     diagnostic: D,
   ) => Promise<T | InspectionResult<T>>;
+  readonly onPreparedIssue: (
+    issue: InspectionIssue<T>,
+  ) => Promise<T | InspectionResult<T>>;
   readonly onException: (
     target: T | InspectionResult<T>,
     error: E,
@@ -152,10 +155,21 @@ export class InspectionDiagnosticsRecorder<T, D, E extends Error = Error>
     return isSuccessfulInspection(target);
   }
 
+  async onPreparedIssue(
+    issue: InspectionIssue<T>,
+  ): Promise<T | InspectionResult<T>> {
+    this.inspectionIssues.push(issue);
+    return issue;
+  }
+
   async onIssue(
     target: T | InspectionResult<T>,
     diagnostic: D,
   ): Promise<T | InspectionResult<T>> {
+    if (isInspectionIssue<T>(target)) {
+      return this.onPreparedIssue(target);
+    }
+
     let issue: InspectionIssue<T> & Diagnosable<D>;
     if (isInspectionResult(target)) {
       issue = {
@@ -205,11 +219,24 @@ export interface WrappedInspectionResult<T, W> extends InspectionResult<W> {
   readonly wrappedInspectionTarget: T | InspectionResult<T>;
 }
 
+export interface WrappedInspectionIssue<T, W>
+  extends InspectionIssue<W>, WrappedInspectionResult<T, W> {
+  readonly wrappedInspectionIssue: InspectionIssue<T>;
+}
+
 export function isWrappedInspectionResult<
   T,
   W extends WrappedInspectionResult<T, W>,
 >(o: unknown): o is W {
   return typeGuard<W>("wrappedInspectionTarget")(o);
+}
+
+export function WrappedInspectionIssue<
+  T,
+  W extends WrappedInspectionIssue<T, W>,
+>(o: unknown): o is W {
+  return isWrappedInspectionResult<T, W>(o) &&
+    typeGuard<W>("wrappedInspectionIssue")(o);
 }
 
 export function wrapInspectionResult<T, W>(
@@ -229,6 +256,18 @@ export function wrapInspectionResult<T, W>(
       wrappedInspectionTarget: target,
     };
   }
+}
+
+export function wrapInspectionIssue<T, W>(
+  issue: InspectionIssue<T>,
+  wrapInto: W,
+): WrappedInspectionIssue<T, W> {
+  return {
+    ...issue,
+    inspectionTarget: wrapInto,
+    wrappedInspectionTarget: issue,
+    wrappedInspectionIssue: issue,
+  };
 }
 
 export class WrappedInspectionDiagnostics<
@@ -254,6 +293,14 @@ export class WrappedInspectionDiagnostics<
   continue(target: T | InspectionResult<T>): boolean {
     const wrapped = this.wrap(target, this.parent);
     return this.parentDiags.continue(wrapped);
+  }
+
+  async onPreparedIssue(
+    issue: InspectionIssue<T>,
+  ): Promise<T | InspectionResult<T>> {
+    const wrapped = wrapInspectionIssue(issue, this.parent);
+    await this.parentDiags.onPreparedIssue(wrapped);
+    return issue;
   }
 
   async onIssue(
@@ -289,6 +336,15 @@ export class ConsoleInspectionDiagnostics<T, D, E extends Error = Error>
 
   continue(target: T | InspectionResult<T>): boolean {
     return this.wrap.continue(target);
+  }
+
+  async onPreparedIssue(
+    issue: InspectionIssue<T>,
+  ): Promise<T | InspectionResult<T>> {
+    if (this.verbose && isDiagnosable<T>(issue)) {
+      console.error(issue.diagnostic);
+    }
+    return await this.wrap.onPreparedIssue(issue);
   }
 
   async onIssue(
