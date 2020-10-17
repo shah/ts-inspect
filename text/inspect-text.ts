@@ -93,5 +93,5 @@ export interface TextInspector
   (
     target: TextContentSupplier | TextInspectionResult,
     diags?: TextInspectionDiagnostics,
-  ): Promise<insp.InspectionResult<TextContentSupplier>>;
+  ): Promise<TextContentSupplier | insp.InspectionResult<TextContentSupplier>>;
 }
