@@ -112,6 +112,49 @@ export function isInspectionIssuesTracker<T>(
   return typeGuard<InspectionIssuesTracker<T>>("inspectionIssues")(o);
 }
 
+export function mergeIssuesIntoResult<T>(
+  target: T | InspectionResult<T>,
+  iit: InspectionIssuesTracker<T>,
+): T | InspectionResult<T> {
+  if (iit.inspectionIssues.length > 0) {
+    let mergeIssuesDest:
+      & InspectionResult<T>
+      & InspectionIssuesTracker<T>;
+    if (
+      isInspectionResult<T>(target) &&
+      isInspectionIssuesTracker<T>(target)
+    ) {
+      target.inspectionIssues.push(...iit.inspectionIssues);
+      mergeIssuesDest = target;
+    } else if (isInspectionResult<T>(target)) {
+      mergeIssuesDest = {
+        ...target,
+        ...iit,
+      };
+    } else {
+      mergeIssuesDest = {
+        ...inspectionResult(target),
+        ...iit,
+      };
+    }
+
+    return mergeIssuesDest;
+  }
+
+  return target;
+}
+
+export function mergeDiagsIntoResult<T, D, E extends Error>(
+  target: T | InspectionResult<T>,
+  diags: InspectionDiagnostics<T, D, E>,
+): T | InspectionResult<T> {
+  if (isInspectionIssuesTracker<T>(diags)) {
+    return mergeIssuesIntoResult(target, diags);
+  }
+
+  return target;
+}
+
 // deno-lint-ignore no-empty-interface
 export interface InspectionOptions {
 }
