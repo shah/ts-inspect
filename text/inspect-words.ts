@@ -1,4 +1,5 @@
 import { safety } from "../deps.ts";
+import * as insp from "../inspect.ts";
 import * as itxt from "./inspect-text.ts";
 
 export const wordsInTextRegEx = /[^\s]+/g;
@@ -15,7 +16,11 @@ export const isInspectWordCountRangeOptions = safety.typeGuard<
 
 export async function inspectWordCountRange(
   target: itxt.TextValue | itxt.TextInspectionResult,
-  diags?: itxt.TextInspectionDiagnostics,
+  // diags is really a itxt.TextInspectionDiagnostics but we only care about
+  // options so we've created a special instance that only requires that
+  // property but it will still work if a full itxt.TextInspectionDiagnostics
+  // is passed in
+  diags?: { options?: insp.InspectionOptions },
 ): Promise<
   | itxt.TextValue
   | itxt.TextInspectionResult
