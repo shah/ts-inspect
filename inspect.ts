@@ -25,6 +25,16 @@ export function inspectionResult<T>(target: T): InspectionResult<T> {
   };
 }
 
+export interface InspectionResultSupplier<T> {
+  (...args: unknown[]): InspectionResult<T>;
+}
+
+export function isInspectionResultSupplier<T>(
+  o: InspectionResult<T> | InspectionResultSupplier<T>,
+): o is InspectionResultSupplier<T> {
+  return o && typeof o === "function";
+}
+
 export interface EmptyInspectorsResult<T> extends InspectionResult<T> {
   readonly isEmptyInspectorsResult: true;
 }
