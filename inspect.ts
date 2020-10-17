@@ -8,10 +8,13 @@ export interface InspectionResult<T> {
   readonly inspectionTarget: T;
 }
 
-export function isInspectionResult<T extends InspectionResult<T>>(
+export function isInspectionResult<T>(
   o: unknown,
-): o is T {
-  return typeGuard<T>("isInspectionResult", "inspectionTarget")(o);
+): o is InspectionResult<T> {
+  return typeGuard<InspectionResult<T>>(
+    "isInspectionResult",
+    "inspectionTarget",
+  )(o);
 }
 
 export function isSuccessfulInspection(o: unknown): boolean {
@@ -39,10 +42,10 @@ export interface EmptyInspectorsResult<T> extends InspectionResult<T> {
   readonly isEmptyInspectorsResult: true;
 }
 
-export function isEmptyInspectors<T extends EmptyInspectorsResult<T>>(
+export function isEmptyInspectors<T>(
   o: unknown,
-): o is T {
-  return typeGuard<T>("isEmptyInspectorsResult")(o);
+): o is EmptyInspectorsResult<T> {
+  return typeGuard<EmptyInspectorsResult<T>>("isEmptyInspectorsResult")(o);
 }
 
 export interface Diagnosable<D> {
@@ -103,10 +106,10 @@ export interface InspectionIssuesTracker<T> {
   readonly inspectionIssues: InspectionIssue<T>[];
 }
 
-export function isInspectionIssuesTracker<
-  T extends InspectionIssuesTracker<T>,
->(o: unknown): o is InspectionIssuesTracker<T> {
-  return typeGuard<T>("inspectionIssues")(o);
+export function isInspectionIssuesTracker<T>(
+  o: unknown,
+): o is InspectionIssuesTracker<T> {
+  return typeGuard<InspectionIssuesTracker<T>>("inspectionIssues")(o);
 }
 
 // deno-lint-ignore no-empty-interface
