@@ -105,7 +105,7 @@ export interface InspectionIssuesTracker<T> {
 
 export function isInspectionIssuesTracker<
   T extends InspectionIssuesTracker<T>,
->(o: unknown): o is T {
+>(o: unknown): o is InspectionIssuesTracker<T> {
   return typeGuard<T>("inspectionIssues")(o);
 }
 
