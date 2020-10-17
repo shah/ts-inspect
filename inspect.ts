@@ -111,7 +111,7 @@ export interface InspectionDiagnostics<T, D, E extends Error = Error> {
   ) => Promise<T | InspectionResult<T>>;
   readonly onPreparedIssue: (
     issue: InspectionIssue<T>,
-  ) => Promise<T | InspectionResult<T>>;
+  ) => Promise<InspectionIssue<T>>;
   readonly onException: (
     target: T | InspectionResult<T>,
     error: E,
@@ -157,7 +157,7 @@ export class InspectionDiagnosticsRecorder<T, D, E extends Error = Error>
 
   async onPreparedIssue(
     issue: InspectionIssue<T>,
-  ): Promise<T | InspectionResult<T>> {
+  ): Promise<InspectionIssue<T>> {
     this.inspectionIssues.push(issue);
     return issue;
   }
@@ -297,7 +297,7 @@ export class WrappedInspectionDiagnostics<
 
   async onPreparedIssue(
     issue: InspectionIssue<T>,
-  ): Promise<T | InspectionResult<T>> {
+  ): Promise<InspectionIssue<T>> {
     const wrapped = wrapInspectionIssue(issue, this.parent);
     await this.parentDiags.onPreparedIssue(wrapped);
     return issue;
@@ -340,7 +340,7 @@ export class ConsoleInspectionDiagnostics<T, D, E extends Error = Error>
 
   async onPreparedIssue(
     issue: InspectionIssue<T>,
-  ): Promise<T | InspectionResult<T>> {
+  ): Promise<InspectionIssue<T>> {
     if (this.verbose && isDiagnosable<T>(issue)) {
       console.error(issue.diagnostic);
     }
