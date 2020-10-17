@@ -1,20 +1,18 @@
 import * as itxt from "./inspect-text.ts";
 
 export async function inspectWebsiteURL(
-  target: itxt.TextContentSupplier | itxt.TextInspectionResult,
+  target: itxt.TextValue | itxt.TextInspectionResult,
 ): Promise<
-  | itxt.TextContentSupplier
+  | itxt.TextValue
   | itxt.TextInspectionResult
   | itxt.TextInspectionIssue
 > {
-  const it: itxt.TextContentSupplier = itxt.isTextInspectionResult(target)
+  const it: itxt.TextValue = itxt.isTextInspectionResult(target)
     ? target.inspectionTarget
     : target;
-  const url = it.text;
+  const url = itxt.resolveTextValue(it);
   if (!url || url.length == 0) {
-    return it.onNoTextAvailable
-      ? it.onNoTextAvailable(target)
-      : it.onNoIssues(target);
+    return it;
   }
 
   try {
@@ -32,5 +30,6 @@ export async function inspectWebsiteURL(
     );
   }
 
-  return it.onNoIssues(target);
+  // no errors found, return untouched
+  return target;
 }

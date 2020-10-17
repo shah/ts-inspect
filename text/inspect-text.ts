@@ -1,15 +1,23 @@
-import type { safety } from "../deps.ts";
 import * as insp from "../inspect.ts";
 
+export interface TextValueSupplier {
+  (...args: unknown[]): string;
+}
+
+export type TextValue = string | TextValueSupplier;
+
+export function resolveTextValue(value: TextValue, ...args: unknown[]): string {
+  return typeof value === "string" ? value : value(...args);
+}
+
 export function textInspectionPipe(
-  ...inspectors: insp.Inspector<TextContentSupplier, string>[]
-): insp.InspectionPipe<TextContentSupplier, string> {
+  ...inspectors: insp.Inspector<TextValue, string>[]
+): insp.InspectionPipe<TextValue, string> {
   return insp.inspectionPipe(...inspectors);
 }
 
 // deno-lint-ignore no-empty-interface
-export interface TextInspectionResult
-  extends insp.InspectionResult<TextContentSupplier> {
+export interface TextInspectionResult extends insp.InspectionResult<TextValue> {
 }
 
 export const isTextInspectionResult = insp.isInspectionResult;
@@ -18,21 +26,10 @@ export const isTextInspectionResult = insp.isInspectionResult;
 export interface TextInspectionOptions extends insp.InspectionOptions {
 }
 
-export interface TextContentSupplier {
-  readonly text: string;
-  readonly onNoIssues: (
-    target: TextContentSupplier | TextInspectionResult,
-  ) => TextContentSupplier | TextInspectionResult;
-  readonly onNoTextAvailable?: (
-    target: TextContentSupplier | TextInspectionResult,
-  ) => TextContentSupplier | TextInspectionResult;
-}
-
 export const isSuccessfulTextInspection = insp.isSuccessfulInspection;
 
 // deno-lint-ignore no-empty-interface
-export interface TextInspectionIssue
-  extends insp.InspectionIssue<TextContentSupplier> {
+export interface TextInspectionIssue extends insp.InspectionIssue<TextValue> {
 }
 
 export const textIssue = insp.inspectionIssue;
@@ -40,31 +37,9 @@ export const isTextInspectionIssue = insp.isInspectionIssue;
 export const isDiagnosableTextInspectionIssue = insp.isDiagnosable;
 
 // deno-lint-ignore no-empty-interface
-export interface TextSanitizerContext {
-}
-
-export function textInspectionTarget(
-  content: string,
-  sanitize?: safety.TransformerSync<
-    TextSanitizerContext,
-    string | TextContentSupplier
-  >,
-): TextContentSupplier {
-  const sanitized = sanitize ? sanitize.transform(content) : content;
-  return typeof sanitized == "string"
-    ? {
-      text: sanitized,
-      onNoIssues: (target: TextContentSupplier | TextInspectionResult) => {
-        return target;
-      },
-    }
-    : sanitized;
-}
-
-// deno-lint-ignore no-empty-interface
 export interface TextInspectionDiagnostics extends
   insp.InspectionDiagnostics<
-    TextContentSupplier,
+    TextValue,
     string,
     Error
   > {
@@ -72,7 +47,7 @@ export interface TextInspectionDiagnostics extends
 
 export class TypicalTextInspectionDiags
   extends insp.InspectionDiagnosticsRecorder<
-    TextContentSupplier,
+    TextValue,
     string,
     Error
   > {
@@ -80,7 +55,7 @@ export class TypicalTextInspectionDiags
 
 export class DerivedTextInspectionDiags<W>
   extends insp.WrappedInspectionDiagnostics<
-    TextContentSupplier,
+    TextValue,
     string,
     Error,
     W
@@ -88,10 +63,9 @@ export class DerivedTextInspectionDiags<W>
 }
 
 export interface TextInspector
-  extends
-    insp.Inspector<TextContentSupplier, TextInspectionDiagnostics, Error> {
+  extends insp.Inspector<TextValue, TextInspectionDiagnostics, Error> {
   (
-    target: TextContentSupplier | TextInspectionResult,
+    target: TextValue | TextInspectionResult,
     diags?: TextInspectionDiagnostics,
-  ): Promise<TextContentSupplier | insp.InspectionResult<TextContentSupplier>>;
+  ): Promise<TextValue | insp.InspectionResult<TextValue>>;
 }

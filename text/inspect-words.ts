@@ -14,25 +14,24 @@ export const isInspectWordCountRangeOptions = safety.typeGuard<
 >("minWords", "maxWords");
 
 export async function inspectWordCountRange(
-  target: itxt.TextContentSupplier | itxt.TextInspectionResult,
-  diags?: { options?: itxt.TextInspectionOptions },
+  target: itxt.TextValue | itxt.TextInspectionResult,
+  diags?: itxt.TextInspectionDiagnostics,
 ): Promise<
-  | itxt.TextContentSupplier
+  | itxt.TextValue
   | itxt.TextInspectionResult
   | itxt.TextInspectionIssue
 > {
-  const it: itxt.TextContentSupplier = itxt.isTextInspectionResult(target)
+  const it: itxt.TextValue = itxt.isTextInspectionResult(target)
     ? target.inspectionTarget
     : target;
-  const text = it.text;
+  const text = itxt.resolveTextValue(it);
   if (!text || text.length == 0) {
-    return it.onNoTextAvailable
-      ? it.onNoTextAvailable(target)
-      : it.onNoIssues(target);
+    return target;
   }
-  const tw = words(it);
+
+  const tw = words(text);
   if (!tw) {
-    return itxt.textIssue(it, "Unable to count words");
+    return itxt.textIssue(it, `Unable to count words`);
   }
   let [min, max] = [10, 15];
   if (diags && isInspectWordCountRangeOptions(diags)) {
@@ -45,7 +44,9 @@ export async function inspectWordCountRange(
       `Word count should be between ${min}-${max} (not ${tw.wordCount})`,
     );
   }
-  return it.onNoIssues(target);
+
+  // no errors found, return untouched
+  return target;
 }
 
 export interface TextWords {
@@ -58,10 +59,10 @@ export interface TextWordDistribution extends TextWords {
 }
 
 export function words(
-  supplier: itxt.TextContentSupplier,
+  text: string,
   regEx: RegExp = wordsInTextRegEx,
 ): TextWords | undefined {
-  const words = supplier.text.toLowerCase().match(regEx);
+  const words = text.toLowerCase().match(regEx);
   if (!words || words.length === 0) {
     return undefined;
   }
@@ -72,10 +73,10 @@ export function words(
 }
 
 export function wordsDistribution(
-  supplier: itxt.TextContentSupplier,
+  text: string,
   regEx: RegExp = wordsInTextRegEx,
 ): TextWordDistribution | undefined {
-  const tw = words(supplier, regEx);
+  const tw = words(text, regEx);
   if (!tw) return undefined;
   const distr: { [word: string]: number } = {};
   tw.words.forEach((word) => {

@@ -26,13 +26,13 @@ culpa qui officia deserunt mollit anim id est laborum.`;
 
     // derived allows "sub-inspections" that store results in the parent diags
     const longTextResult = await ip(
-      mod.textInspectionTarget(this.longText),
+      this.longText,
       new mod.DerivedTextInspectionDiags<TestPrime>(this, diags),
     );
     ta.assert(mod.isTextInspectionIssue(longTextResult));
 
     const shortTextResult = await ip(
-      mod.textInspectionTarget(this.shortText),
+      this.shortText,
       new mod.DerivedTextInspectionDiags<TestPrime>(this, diags),
     );
     ta.assert(mod.isTextInspectionIssue(shortTextResult));
@@ -44,18 +44,17 @@ culpa qui officia deserunt mollit anim id est laborum.`;
 Deno.test(`word count matches expectations (pipe with diagnostics)`, async () => {
   const diags = new mod.TypicalTextInspectionDiags();
   const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
-  const result = await ip(mod.textInspectionTarget(goodText), diags);
+  const result = await ip(goodText, diags);
 
   ta.assert(mod.isSuccessfulTextInspection(result));
   ta.assertEquals(diags.inspectionIssues.length, 0);
 });
 
 Deno.test(`word count matches expectations (without pipe, no diagnostics)`, async () => {
-  const supplier = mod.textInspectionTarget(goodText);
-  const result = await mod.inspectWordCountRange(supplier);
+  const result = await mod.inspectWordCountRange(goodText);
   ta.assertEquals(
     result,
-    supplier,
+    goodText,
     "Since there were no errors, the result should be the same as the input",
   );
 });
@@ -87,10 +86,7 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
 Deno.test(`invalid website (pipe with diagnostics)`, async () => {
   const ip = mod.textInspectionPipe(mod.inspectWebsiteURL);
   const diags = new mod.TypicalTextInspectionDiags();
-  const result = await ip(
-    mod.textInspectionTarget("htps://bad.com/url"),
-    diags,
-  );
+  const result = await ip("htps://bad.com/url", diags);
 
   ta.assert(mod.isTextInspectionIssue(result));
   ta.assertEquals(diags.inspectionIssues.length, 1);
