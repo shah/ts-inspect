@@ -6,20 +6,53 @@ export const wordsInTextRegEx = /[^\s]+/g;
 
 export interface InspectWordCountRangeOptions
   extends itxt.TextInspectionOptions {
-  readonly minWords: number;
-  readonly maxWords: number;
+  // the names of these properties are long and descriptive because
+  // they can be merged with other validation pipe options
+  readonly inspectWordCountMinWords: number;
+  readonly inspectWordCountMaxWords: number;
+}
+
+export interface InspectWordCountRangeOptionsSupplier {
+  readonly inspectWordCountRange: InspectWordCountRangeOptions;
 }
 
 export const isInspectWordCountRangeOptions = safety.typeGuard<
   InspectWordCountRangeOptions
->("minWords", "maxWords");
+>("inspectWordCountMinWords", "inspectWordCountMaxWords");
+
+export const isInspectWordCountRangeOptionsSupplier = safety.typeGuard<
+  InspectWordCountRangeOptionsSupplier
+>("inspectWordCountRange");
+
+export const defaultInspectWordCountRangeOptions: InspectWordCountRangeOptions =
+  {
+    inspectWordCountMinWords: 10,
+    inspectWordCountMaxWords: 15,
+  };
+
+export function detectInspectWordCountRangeOptions(
+  typical: InspectWordCountRangeOptions = defaultInspectWordCountRangeOptions,
+  ...detectIn: unknown[]
+): InspectWordCountRangeOptions {
+  for (const check in detectIn) {
+    if (isInspectWordCountRangeOptionsSupplier(check)) {
+      return check.inspectWordCountRange;
+    }
+  }
+  for (const target in detectIn) {
+    if (isInspectWordCountRangeOptions(target)) {
+      return target;
+    }
+  }
+  return typical;
+}
 
 export async function inspectWordCountRange(
   target: itxt.TextValue | itxt.TextInspectionResult,
-  // diags is really a itxt.TextInspectionDiagnostics but we only care about
+  // diags is really a itxt.TextInspectionDiagnostics though we only care about
   // options so we've created a special instance that only requires that
-  // property but it will still work if a full itxt.TextInspectionDiagnostics
-  // is passed in
+  // property. But it will still work if a full itxt.TextInspectionDiagnostics
+  // is passed in as well.
   diags?: { options?: insp.InspectionOptions },
 ): Promise<
   | itxt.TextValue
@@ -38,15 +71,19 @@ export async function inspectWordCountRange(
   if (!tw) {
     return itxt.textIssue(it, `Unable to count words`);
   }
-  let [min, max] = [10, 15];
-  if (diags && isInspectWordCountRangeOptions(diags)) {
-    min = diags.minWords;
-    max = diags.maxWords;
-  }
-  if (tw.wordCount > max || tw.wordCount < min) {
+
+  const options = detectInspectWordCountRangeOptions(
+    defaultInspectWordCountRangeOptions,
+    target,
+    diags,
+  );
+  if (
+    tw.wordCount > options.inspectWordCountMaxWords ||
+    tw.wordCount < options.inspectWordCountMinWords
+  ) {
     return itxt.textIssue(
       it,
-      `Word count should be between ${min}-${max} (not ${tw.wordCount})`,
+      `Word count should be between ${options.inspectWordCountMinWords}-${options.inspectWordCountMaxWords} (not ${tw.wordCount})`,
     );
   }
 
