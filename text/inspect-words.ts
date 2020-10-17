@@ -24,14 +24,18 @@ export const isInspectWordCountRangeOptionsSupplier = safety.typeGuard<
   InspectWordCountRangeOptionsSupplier
 >("inspectWordCountRange");
 
-export const defaultInspectWordCountRangeOptions: InspectWordCountRangeOptions =
-  {
-    inspectWordCountMinWords: 10,
-    inspectWordCountMaxWords: 15,
+export function inspectWordCountRangeOptions(
+  min: number,
+  max: number,
+): InspectWordCountRangeOptions {
+  return {
+    inspectWordCountMinWords: min,
+    inspectWordCountMaxWords: max,
   };
+}
 
 export function detectInspectWordCountRangeOptions(
-  typical: InspectWordCountRangeOptions = defaultInspectWordCountRangeOptions,
+  typical: InspectWordCountRangeOptions,
   ...detectIn: unknown[]
 ): InspectWordCountRangeOptions {
   for (const check in detectIn) {
@@ -73,7 +77,7 @@ export async function inspectWordCountRange(
   }
 
   const options = detectInspectWordCountRangeOptions(
-    defaultInspectWordCountRangeOptions,
+    inspectWordCountRangeOptions(10, 15),
     target,
     diags,
   );
