@@ -122,22 +122,24 @@ export interface InspectionDiagnostics<T, D, E extends Error = Error> {
 export interface Inspector<
   T,
   D,
-  E extends Error = Error,
+  E extends Error,
+  ID extends InspectionDiagnostics<T, D, E>,
 > {
   (
     target: T | InspectionResult<T>,
-    diags?: InspectionDiagnostics<T, D, E>,
+    diags?: ID,
   ): Promise<T | InspectionResult<T>>;
 }
 
 export interface InspectionPipe<
   T,
   D,
-  E extends Error = Error,
+  E extends Error,
+  ID extends InspectionDiagnostics<T, D, E>,
 > {
   (
     inspectionTarget: T,
-    diags?: InspectionDiagnostics<T, D, E>,
+    diags?: ID,
   ): Promise<T | InspectionResult<T>>;
 }
 
@@ -371,13 +373,14 @@ export class ConsoleInspectionDiagnostics<T, D, E extends Error = Error>
 export function inspectionPipe<
   T,
   D,
-  E extends Error = Error,
+  E extends Error,
+  ID extends InspectionDiagnostics<T, D, E>,
 >(
-  ...inspectors: Inspector<T, D, E>[]
-): InspectionPipe<T, D, E> {
+  ...inspectors: Inspector<T, D, E, ID>[]
+): InspectionPipe<T, D, E, ID> {
   return async (
     inspectionTarget: T,
-    diags?: InspectionDiagnostics<T, D, E>,
+    diags?: ID,
   ): Promise<T | InspectionResult<T>> => {
     if (inspectors.length == 0) {
       const empty: EmptyInspectorsResult<T> = {

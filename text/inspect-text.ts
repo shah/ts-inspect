@@ -11,8 +11,13 @@ export function resolveTextValue(value: TextValue, ...args: unknown[]): string {
 }
 
 export function textInspectionPipe(
-  ...inspectors: insp.Inspector<TextValue, string>[]
-): insp.InspectionPipe<TextValue, string> {
+  ...inspectors: insp.Inspector<
+    TextValue,
+    string,
+    Error,
+    TextInspectionDiagnostics
+  >[]
+): insp.InspectionPipe<TextValue, string, Error, TextInspectionDiagnostics> {
   return insp.inspectionPipe(...inspectors);
 }
 
@@ -62,8 +67,13 @@ export class DerivedTextInspectionDiags<W>
   > {
 }
 
-export interface TextInspector
-  extends insp.Inspector<TextValue, TextInspectionDiagnostics, Error> {
+export interface TextInspector extends
+  insp.Inspector<
+    TextValue,
+    string,
+    Error,
+    TextInspectionDiagnostics
+  > {
   (
     target: TextValue | TextInspectionResult,
     diags?: TextInspectionDiagnostics,
