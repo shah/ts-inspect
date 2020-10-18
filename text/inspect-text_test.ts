@@ -71,7 +71,7 @@ Deno.test(`word count does not match expectations (without pipe, no diagnostics,
   ta.assert(mod.isTextInspectionIssue(result), "Should be an issue");
   ta.assert(insp.isDiagnosable(result), "Should have a diagnostic message");
   ta.assertEquals(
-    result.diagnostic,
+    result.mostRecentDiagnostic(),
     "Word count should be between 3-5 (not 12)",
   );
 });
@@ -87,7 +87,7 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
   ta.assert(insp.isWrappedInspectionResult(longTextIssue));
   ta.assert(mod.isDiagnosableTextInspectionIssue(longTextIssue));
   ta.assertEquals(
-    longTextIssue.diagnostic,
+    longTextIssue.mostRecentDiagnostic(),
     "Word count should be between 10-15 (not 69)",
   );
 
@@ -95,7 +95,7 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
   ta.assert(insp.isWrappedInspectionResult(shortTextIssue));
   ta.assert(mod.isDiagnosableTextInspectionIssue(shortTextIssue));
   ta.assertEquals(
-    shortTextIssue.diagnostic,
+    shortTextIssue.mostRecentDiagnostic(),
     "Word count should be between 10-15 (not 7)",
   );
 });
@@ -113,7 +113,7 @@ Deno.test(`invalid website (pipe with diagnostics)`, async () => {
   const issue = diags.inspectionIssues[0];
   ta.assert(mod.isDiagnosableTextInspectionIssue(issue));
   ta.assertEquals(
-    issue.diagnostic,
+    issue.mostRecentDiagnostic(),
     "Exception while trying to fetch htps://bad.com/url: TypeError: scheme 'htps' not supported",
   );
 });

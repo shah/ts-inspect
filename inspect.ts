@@ -49,11 +49,12 @@ export function isEmptyInspectors<T>(
 }
 
 export interface Diagnosable<D> {
-  readonly diagnostic: D;
+  readonly diagnostics: D[];
+  readonly mostRecentDiagnostic: () => D | undefined;
 }
 
 export function isDiagnosable<D>(o: unknown): o is Diagnosable<D> {
-  return typeGuard<Diagnosable<D>>("diagnostic")(o);
+  return typeGuard<Diagnosable<D>>("diagnostics")(o);
 }
 
 export interface InspectionIssue<T> extends InspectionResult<T> {
@@ -69,14 +70,31 @@ export function isInspectionIssue<T>(
 }
 
 export function inspectionIssue<T, D>(
-  o: T,
+  o: T | InspectionResult<T>,
   diagnostic: D,
 ): InspectionIssue<T> & Diagnosable<D> {
+  if (isInspectionIssue<T>(o) && isDiagnosable<D>(o)) {
+    o.diagnostics.push(diagnostic);
+    return o;
+  }
+  const diagnostics: D[] = [diagnostic];
+  const mostRecentDiagnostic = () => {
+    return diagnostics[diagnostics.length - 1];
+  };
+  if (isInspectionResult<T>(o)) {
+    return {
+      ...o,
+      isInspectionIssue: true,
+      diagnostics: diagnostics,
+      mostRecentDiagnostic: mostRecentDiagnostic,
+    };
+  }
   return {
     isInspectionResult: true,
     isInspectionIssue: true,
     inspectionTarget: o,
-    diagnostic: diagnostic,
+    diagnostics: diagnostics,
+    mostRecentDiagnostic: mostRecentDiagnostic,
   };
 }
 
@@ -102,24 +120,24 @@ export function isInspectionException<T, E extends Error = Error>(
   )(o);
 }
 
-export interface InspectionIssuesTracker<T> {
+export interface InspectionIssuesManager<T> {
   readonly inspectionIssues: InspectionIssue<T>[];
 }
 
 export function isInspectionIssuesTracker<T>(
   o: unknown,
-): o is InspectionIssuesTracker<T> {
-  return typeGuard<InspectionIssuesTracker<T>>("inspectionIssues")(o);
+): o is InspectionIssuesManager<T> {
+  return typeGuard<InspectionIssuesManager<T>>("inspectionIssues")(o);
 }
 
 export function mergeIssuesIntoResult<T>(
   target: T | InspectionResult<T>,
-  iit: InspectionIssuesTracker<T>,
+  iit: InspectionIssuesManager<T>,
 ): T | InspectionResult<T> {
   if (iit.inspectionIssues.length > 0) {
     let mergeIssuesDest:
       & InspectionResult<T>
-      & InspectionIssuesTracker<T>;
+      & InspectionIssuesManager<T>;
     if (
       isInspectionResult<T>(target) &&
       isInspectionIssuesTracker<T>(target)
@@ -175,10 +193,6 @@ export interface InspectionDiagnostics<T, D, E extends Error = Error> {
   readonly context: InspectionContext;
   readonly options?: InspectionOptions;
   readonly onIssue: (
-    target: T | InspectionResult<T>,
-    diagnostic: D,
-  ) => Promise<T | InspectionResult<T>>;
-  readonly onPreparedIssue: (
     issue: InspectionIssue<T>,
   ) => Promise<InspectionIssue<T>>;
   readonly onException: (
@@ -213,7 +227,7 @@ export interface InspectionPipe<
 }
 
 export class InspectionDiagnosticsRecorder<T, D, E extends Error = Error>
-  implements InspectionDiagnostics<T, D, E>, InspectionIssuesTracker<T> {
+  implements InspectionDiagnostics<T, D, E>, InspectionIssuesManager<T> {
   readonly inspectionIssues: InspectionIssue<T>[] = [];
 
   constructor(
@@ -229,36 +243,9 @@ export class InspectionDiagnosticsRecorder<T, D, E extends Error = Error>
     return isSuccessfulInspection(target);
   }
 
-  async onPreparedIssue(
+  async onIssue(
     issue: InspectionIssue<T>,
   ): Promise<InspectionIssue<T>> {
-    this.inspectionIssues.push(issue);
-    return issue;
-  }
-
-  async onIssue(
-    target: T | InspectionResult<T>,
-    diagnostic: D,
-  ): Promise<T | InspectionResult<T>> {
-    if (isInspectionIssue<T>(target)) {
-      return this.onPreparedIssue(target);
-    }
-
-    let issue: InspectionIssue<T> & Diagnosable<D>;
-    if (isInspectionResult(target)) {
-      issue = {
-        ...target,
-        isInspectionIssue: true,
-        diagnostic: diagnostic,
-      };
-    } else {
-      issue = {
-        isInspectionResult: true,
-        isInspectionIssue: true,
-        inspectionTarget: target,
-        diagnostic: diagnostic,
-      };
-    }
     this.inspectionIssues.push(issue);
     return issue;
   }
@@ -373,21 +360,12 @@ export class WrappedInspectionDiagnostics<
     return this.parentDiags.continue(wrapped);
   }
 
-  async onPreparedIssue(
+  async onIssue(
     issue: InspectionIssue<T>,
   ): Promise<InspectionIssue<T>> {
     const wrapped = wrapInspectionIssue(issue, this.parent);
-    await this.parentDiags.onPreparedIssue(wrapped);
+    await this.parentDiags.onIssue(wrapped);
     return issue;
-  }
-
-  async onIssue(
-    target: T | InspectionResult<T>,
-    diagnostic: D,
-  ): Promise<T | InspectionResult<T>> {
-    const wrapped = this.wrap(target, this.parent);
-    await this.parentDiags.onIssue(wrapped, diagnostic);
-    return target;
   }
 
   async onException(
@@ -420,23 +398,13 @@ export class ConsoleInspectionDiagnostics<T, D, E extends Error = Error>
     return this.wrap.continue(target);
   }
 
-  async onPreparedIssue(
+  async onIssue(
     issue: InspectionIssue<T>,
   ): Promise<InspectionIssue<T>> {
-    if (this.verbose && isDiagnosable<T>(issue)) {
-      console.error(issue.diagnostic);
+    if (this.verbose && isDiagnosable<D>(issue)) {
+      console.error(issue.mostRecentDiagnostic());
     }
-    return await this.wrap.onPreparedIssue(issue);
-  }
-
-  async onIssue(
-    target: T | InspectionResult<T>,
-    diagnostic: D,
-  ): Promise<T | InspectionResult<T>> {
-    if (this.verbose) {
-      console.error(diagnostic);
-    }
-    return await this.wrap.onIssue(target, diagnostic);
+    return await this.wrap.onIssue(issue);
   }
 
   async onException(
@@ -492,12 +460,14 @@ export function inspectionPipe<
           if (isInspectionIssuesTracker<T>(result)) {
             if (diags) {
               for (const issue of result.inspectionIssues) {
-                diags.onPreparedIssue(issue);
+                diags.onIssue(issue);
               }
             }
             result = mergeIssuesIntoResult<T>(result, result);
-          } else if (diags && isDiagnosable<D>(result)) {
-            result = await diags.onIssue(result, result.diagnostic);
+          } else if (
+            diags && isInspectionIssue<T>(result) && isDiagnosable<D>(result)
+          ) {
+            result = await diags.onIssue(result);
           }
           if (!diags || !diags.continue(result)) return result;
         }
