@@ -71,13 +71,15 @@ export function isInspectionIssue<T>(
 
 export function inspectionIssue<T, D>(
   o: T | InspectionResult<T>,
-  diagnostic: D,
+  diagnostic: D | D[],
 ): InspectionIssue<T> & Diagnosable<D> {
+  const diagnostics: D[] = Array.isArray(diagnostic)
+    ? [...diagnostic]
+    : [diagnostic];
   if (isInspectionIssue<T>(o) && isDiagnosable<D>(o)) {
-    o.diagnostics.push(diagnostic);
+    o.diagnostics.push(...diagnostics);
     return o;
   }
-  const diagnostics: D[] = [diagnostic];
   const mostRecentDiagnostic = () => {
     return diagnostics[diagnostics.length - 1];
   };
