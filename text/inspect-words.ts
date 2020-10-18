@@ -13,7 +13,7 @@ export interface InspectWordCountRangeOptions
 }
 
 export interface InspectWordCountRangeOptionsSupplier {
-  readonly inspectWordCountRange: InspectWordCountRangeOptions;
+  readonly inspectWordCountRangeOptions: InspectWordCountRangeOptions;
 }
 
 export const isInspectWordCountRangeOptions = safety.typeGuard<
@@ -22,7 +22,7 @@ export const isInspectWordCountRangeOptions = safety.typeGuard<
 
 export const isInspectWordCountRangeOptionsSupplier = safety.typeGuard<
   InspectWordCountRangeOptionsSupplier
->("inspectWordCountRange");
+>("inspectWordCountRangeOptions");
 
 export function inspectWordCountRangeOptions(
   min: number,
@@ -38,14 +38,14 @@ export function detectInspectWordCountRangeOptions(
   typical: InspectWordCountRangeOptions,
   ...detectIn: unknown[]
 ): InspectWordCountRangeOptions {
-  for (const check in detectIn) {
+  for (const check of detectIn) {
     if (isInspectWordCountRangeOptionsSupplier(check)) {
-      return check.inspectWordCountRange;
+      return check.inspectWordCountRangeOptions;
     }
   }
-  for (const target in detectIn) {
-    if (isInspectWordCountRangeOptions(target)) {
-      return target;
+  for (const check of detectIn) {
+    if (isInspectWordCountRangeOptions(check)) {
+      return check;
     }
   }
   return typical;
@@ -54,7 +54,7 @@ export function detectInspectWordCountRangeOptions(
 export async function inspectWordCountRange(
   target: itxt.TextValue | itxt.TextInspectionResult,
   // diags is really a itxt.TextInspectionDiagnostics though we only care about
-  // options so we've created a special instance that only requires that
+  // options so we've constructed a special instance that only requires that
   // property. But it will still work if a full itxt.TextInspectionDiagnostics
   // is passed in as well.
   diags?: { options?: insp.InspectionOptions },
@@ -78,6 +78,7 @@ export async function inspectWordCountRange(
 
   const options = detectInspectWordCountRangeOptions(
     inspectWordCountRangeOptions(10, 15),
+    diags?.options,
     target,
     diags,
   );

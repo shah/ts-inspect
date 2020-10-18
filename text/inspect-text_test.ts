@@ -21,7 +21,9 @@ culpa qui officia deserunt mollit anim id est laborum.`;
   async inspect(): Promise<
     insp.InspectionDiagnosticsRecorder<TestPrime, string>
   > {
-    const diags = new insp.InspectionDiagnosticsRecorder<TestPrime, string>();
+    const diags = new insp.InspectionDiagnosticsRecorder<TestPrime, string>(
+      insp.inspectionPipeContext(),
+    );
     const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
 
     // derived allows "sub-inspections" that store results in the parent diags
@@ -42,7 +44,9 @@ culpa qui officia deserunt mollit anim id est laborum.`;
 }
 
 Deno.test(`word count matches expectations (pipe with diagnostics)`, async () => {
-  const diags = new mod.TypicalTextInspectionDiags();
+  const diags = new mod.TypicalTextInspectionDiags(
+    insp.inspectionPipeContext(),
+  );
   const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
   const result = await ip(goodText, diags);
 
@@ -56,6 +60,19 @@ Deno.test(`word count matches expectations (without pipe, no diagnostics)`, asyn
     result,
     goodText,
     "Since there were no errors, the result should be the same as the input",
+  );
+});
+
+Deno.test(`word count does not match expectations (without pipe, no diagnostics, with options)`, async () => {
+  const result = await mod.inspectWordCountRange(
+    goodText,
+    { options: mod.inspectWordCountRangeOptions(3, 5) },
+  );
+  ta.assert(mod.isTextInspectionIssue(result), "Should be an issue");
+  ta.assert(insp.isDiagnosable(result), "Should have a diagnostic message");
+  ta.assertEquals(
+    result.diagnostic,
+    "Word count should be between 3-5 (not 12)",
   );
 });
 
@@ -85,7 +102,9 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
 
 Deno.test(`invalid website (pipe with diagnostics)`, async () => {
   const ip = mod.textInspectionPipe(mod.inspectWebsiteURL);
-  const diags = new mod.TypicalTextInspectionDiags();
+  const diags = new mod.TypicalTextInspectionDiags(
+    insp.inspectionPipeContext(),
+  );
   const result = await ip("htps://bad.com/url", diags);
 
   ta.assert(mod.isTextInspectionIssue(result));

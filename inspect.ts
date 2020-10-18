@@ -155,11 +155,24 @@ export function mergeDiagsIntoResult<T, D, E extends Error>(
   return target;
 }
 
+export interface InspectionContext {
+  readonly isInInspectionPipe?: boolean;
+}
+
+export function defaultInspectionContext(): InspectionContext {
+  return {};
+}
+
+export function inspectionPipeContext(): InspectionContext {
+  return { isInInspectionPipe: true };
+}
+
 // deno-lint-ignore no-empty-interface
 export interface InspectionOptions {
 }
 
 export interface InspectionDiagnostics<T, D, E extends Error = Error> {
+  readonly context: InspectionContext;
   readonly options?: InspectionOptions;
   readonly onIssue: (
     target: T | InspectionResult<T>,
@@ -203,7 +216,10 @@ export class InspectionDiagnosticsRecorder<T, D, E extends Error = Error>
   implements InspectionDiagnostics<T, D, E>, InspectionIssuesTracker<T> {
   readonly inspectionIssues: InspectionIssue<T>[] = [];
 
-  constructor(readonly options?: InspectionOptions) {
+  constructor(
+    readonly context: InspectionContext,
+    readonly options?: InspectionOptions,
+  ) {
   }
 
   continue(target: T | InspectionResult<T>): boolean {
@@ -344,6 +360,10 @@ export class WrappedInspectionDiagnostics<
   ) {
   }
 
+  get context(): InspectionContext {
+    return this.parentDiags.context;
+  }
+
   get options(): InspectionOptions | undefined {
     return this.parentDiags.options;
   }
@@ -386,6 +406,10 @@ export class ConsoleInspectionDiagnostics<T, D, E extends Error = Error>
     readonly wrap: InspectionDiagnostics<T, D, E>,
     readonly verbose?: boolean,
   ) {
+  }
+
+  get context(): InspectionContext {
+    return this.wrap.context;
   }
 
   get options(): InspectionOptions | undefined {
@@ -447,10 +471,12 @@ export function inspectionPipe<
       return empty;
     }
 
-    let result: T | InspectionResult<T> = {
-      isInspectionResult: true,
-      inspectionTarget: inspectionTarget,
-    };
+    if (diags) {
+      if (!diags.options) {
+        diags.options;
+      }
+    }
+    let result: T | InspectionResult<T> = inspectionTarget;
     for (const inspect of inspectors) {
       try {
         result = await inspect(result, diags);
@@ -463,7 +489,14 @@ export function inspectionPipe<
           }
           if (!diags || !diags?.continue(result)) return result;
         } else if (isInspectionIssue<T>(result)) {
-          if (diags && isDiagnosable<D>(result)) {
+          if (isInspectionIssuesTracker<T>(result)) {
+            if (diags) {
+              for (const issue of result.inspectionIssues) {
+                diags.onPreparedIssue(issue);
+              }
+            }
+            result = mergeIssuesIntoResult<T>(result, result);
+          } else if (diags && isDiagnosable<D>(result)) {
             result = await diags.onIssue(result, result.diagnostic);
           }
           if (!diags || !diags.continue(result)) return result;
