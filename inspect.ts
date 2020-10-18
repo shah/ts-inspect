@@ -126,7 +126,7 @@ export interface InspectionIssuesManager<T> {
   readonly inspectionIssues: InspectionIssue<T>[];
 }
 
-export function isInspectionIssuesTracker<T>(
+export function isInspectionIssuesManager<T>(
   o: unknown,
 ): o is InspectionIssuesManager<T> {
   return typeGuard<InspectionIssuesManager<T>>("inspectionIssues")(o);
@@ -142,7 +142,7 @@ export function mergeIssuesIntoResult<T>(
       & InspectionIssuesManager<T>;
     if (
       isInspectionResult<T>(target) &&
-      isInspectionIssuesTracker<T>(target)
+      isInspectionIssuesManager<T>(target)
     ) {
       target.inspectionIssues.push(...iit.inspectionIssues);
       mergeIssuesDest = target;
@@ -168,10 +168,33 @@ export function mergeDiagsIntoResult<T, D, E extends Error>(
   target: T | InspectionResult<T>,
   diags: InspectionDiagnostics<T, D, E>,
 ): T | InspectionResult<T> {
-  if (isInspectionIssuesTracker<T>(diags)) {
+  if (isInspectionIssuesManager<T>(diags)) {
     return mergeIssuesIntoResult(target, diags);
   }
 
+  return target;
+}
+
+export function mergeDiagsIntoIssue<T, D, E extends Error>(
+  target: T | InspectionResult<T>,
+  diags: InspectionDiagnostics<T, D, E>,
+): T | InspectionIssue<T> {
+  const result = mergeDiagsIntoResult(target, diags);
+  if (isInspectionIssue<T>(result)) return result;
+  if (isInspectionResult<T>(result)) {
+    return {
+      ...result,
+      isInspectionIssue: true,
+    };
+  }
+  if (isInspectionResult<T>(target)) {
+    // this should never happen, but is here for type-safety;
+    // isInspectionResult<T>(result) above should have been caught as true
+    return {
+      ...target,
+      isInspectionIssue: true,
+    };
+  }
   return target;
 }
 
@@ -441,11 +464,6 @@ export function inspectionPipe<
       return empty;
     }
 
-    if (diags) {
-      if (!diags.options) {
-        diags.options;
-      }
-    }
     let result: T | InspectionResult<T> = inspectionTarget;
     for (const inspect of inspectors) {
       try {
@@ -459,7 +477,7 @@ export function inspectionPipe<
           }
           if (!diags || !diags?.continue(result)) return result;
         } else if (isInspectionIssue<T>(result)) {
-          if (isInspectionIssuesTracker<T>(result)) {
+          if (isInspectionIssuesManager<T>(result)) {
             if (diags) {
               for (const issue of result.inspectionIssues) {
                 diags.onIssue(issue);

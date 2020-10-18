@@ -80,7 +80,7 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
   const prime = new TestPrime();
   const diags = await prime.inspect();
 
-  ta.assert(insp.isInspectionIssuesTracker(diags));
+  ta.assert(insp.isInspectionIssuesManager(diags));
   ta.assertEquals(diags.inspectionIssues.length, 2);
 
   const longTextIssue = diags.inspectionIssues[0];
