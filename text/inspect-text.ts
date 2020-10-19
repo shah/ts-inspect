@@ -1,4 +1,4 @@
-import * as insp from "../inspect.ts";
+import * as insp from "../mod.ts";
 
 export interface TextValueSupplier {
   (...args: unknown[]): string;
@@ -13,11 +13,9 @@ export function resolveTextValue(value: TextValue, ...args: unknown[]): string {
 export function textInspectionPipe(
   ...inspectors: insp.Inspector<
     TextValue,
-    string,
-    Error,
-    TextInspectionDiagnostics
+    Error
   >[]
-): insp.InspectionPipe<TextValue, string, Error, TextInspectionDiagnostics> {
+): insp.InspectionPipe<TextValue, Error> {
   return insp.inspectionPipe(...inspectors);
 }
 
@@ -26,11 +24,6 @@ export interface TextInspectionResult extends insp.InspectionResult<TextValue> {
 }
 
 export const isTextInspectionResult = insp.isInspectionResult;
-
-// deno-lint-ignore no-empty-interface
-export interface TextInspectionOptions extends insp.InspectionOptions {
-}
-
 export const isSuccessfulTextInspection = insp.isSuccessfulInspection;
 
 // deno-lint-ignore no-empty-interface
@@ -45,23 +38,17 @@ export const isDiagnosableTextInspectionIssue = insp.isDiagnosable;
 export interface TextInspectionDiagnostics extends
   insp.InspectionDiagnostics<
     TextValue,
-    string,
     Error
   > {
 }
 
 export class TypicalTextInspectionDiags
-  extends insp.InspectionDiagnosticsRecorder<
-    TextValue,
-    string,
-    Error
-  > {
+  extends insp.InspectionDiagnosticsRecorder<TextValue> {
 }
 
 export class DerivedTextInspectionDiags<W>
   extends insp.WrappedInspectionDiagnostics<
     TextValue,
-    string,
     Error,
     W
   > {
@@ -70,12 +57,10 @@ export class DerivedTextInspectionDiags<W>
 export interface TextInspector extends
   insp.Inspector<
     TextValue,
-    string,
-    Error,
-    TextInspectionDiagnostics
+    Error
   > {
   (
     target: TextValue | TextInspectionResult,
-    diags?: TextInspectionDiagnostics,
+    ctx?: insp.InspectionContext | TextInspectionDiagnostics,
   ): Promise<TextValue | insp.InspectionResult<TextValue>>;
 }

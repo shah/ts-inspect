@@ -1,6 +1,6 @@
 import { testingAsserts as ta } from "../deps-test.ts";
-import * as insp from "../inspect.ts";
-import * as mod from "./mod.ts";
+import * as insp from "../mod.ts";
+import * as inspT from "./mod.ts";
 
 const goodText =
   `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
@@ -19,43 +19,43 @@ culpa qui officia deserunt mollit anim id est laborum.`;
   readonly shortText = `Lorem ipsum dolor sit amet, consectetur adipiscing`;
 
   async inspect(): Promise<
-    insp.InspectionDiagnosticsRecorder<TestPrime, string>
+    insp.InspectionDiagnosticsRecorder<TestPrime>
   > {
-    const diags = new insp.InspectionDiagnosticsRecorder<TestPrime, string>(
+    const diags = new insp.InspectionDiagnosticsRecorder<TestPrime>(
       insp.inspectionPipeContext(),
     );
-    const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
+    const ip = inspT.textInspectionPipe(inspT.inspectWordCountRange);
 
     // derived allows "sub-inspections" that store results in the parent diags
     const longTextResult = await ip(
       this.longText,
-      new mod.DerivedTextInspectionDiags<TestPrime>(this, diags),
+      new inspT.DerivedTextInspectionDiags<TestPrime>(this, diags),
     );
-    ta.assert(mod.isTextInspectionIssue(longTextResult));
+    ta.assert(inspT.isTextInspectionIssue(longTextResult));
 
     const shortTextResult = await ip(
       this.shortText,
-      new mod.DerivedTextInspectionDiags<TestPrime>(this, diags),
+      new inspT.DerivedTextInspectionDiags<TestPrime>(this, diags),
     );
-    ta.assert(mod.isTextInspectionIssue(shortTextResult));
+    ta.assert(inspT.isTextInspectionIssue(shortTextResult));
 
     return diags;
   }
 }
 
 Deno.test(`word count matches expectations (pipe with diagnostics)`, async () => {
-  const diags = new mod.TypicalTextInspectionDiags(
+  const diags = new inspT.TypicalTextInspectionDiags(
     insp.inspectionPipeContext(),
   );
-  const ip = mod.textInspectionPipe(mod.inspectWordCountRange);
+  const ip = inspT.textInspectionPipe(inspT.inspectWordCountRange);
   const result = await ip(goodText, diags);
 
-  ta.assert(mod.isSuccessfulTextInspection(result));
+  ta.assert(inspT.isSuccessfulTextInspection(result));
   ta.assertEquals(diags.inspectionIssues.length, 0);
 });
 
 Deno.test(`word count matches expectations (without pipe, no diagnostics)`, async () => {
-  const result = await mod.inspectWordCountRange(goodText);
+  const result = await inspT.inspectWordCountRange(goodText);
   ta.assertEquals(
     result,
     goodText,
@@ -64,11 +64,14 @@ Deno.test(`word count matches expectations (without pipe, no diagnostics)`, asyn
 });
 
 Deno.test(`word count does not match expectations (without pipe, no diagnostics, with options)`, async () => {
-  const result = await mod.inspectWordCountRange(
+  const result = await inspT.inspectWordCountRange(
     goodText,
-    { options: mod.inspectWordCountRangeOptions(3, 5) },
+    insp.inspectionContext<inspT.InspectWordCountRangeSupplier>({
+      isInInspectionPipe: true,
+      inspectWordCountRange: insp.numericRange(3, 5),
+    }),
   );
-  ta.assert(mod.isTextInspectionIssue(result), "Should be an issue");
+  ta.assert(inspT.isTextInspectionIssue(result), "Should be an issue");
   ta.assert(insp.isDiagnosable(result), "Should have a diagnostic message");
   ta.assertEquals(
     result.mostRecentDiagnostic(),
@@ -85,7 +88,7 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
 
   const longTextIssue = diags.inspectionIssues[0];
   ta.assert(insp.isWrappedInspectionResult(longTextIssue));
-  ta.assert(mod.isDiagnosableTextInspectionIssue(longTextIssue));
+  ta.assert(inspT.isDiagnosableTextInspectionIssue(longTextIssue));
   ta.assertEquals(
     longTextIssue.mostRecentDiagnostic(),
     "Word count should be between 10-15 (not 69)",
@@ -93,7 +96,7 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
 
   const shortTextIssue = diags.inspectionIssues[1];
   ta.assert(insp.isWrappedInspectionResult(shortTextIssue));
-  ta.assert(mod.isDiagnosableTextInspectionIssue(shortTextIssue));
+  ta.assert(inspT.isDiagnosableTextInspectionIssue(shortTextIssue));
   ta.assertEquals(
     shortTextIssue.mostRecentDiagnostic(),
     "Word count should be between 10-15 (not 7)",
@@ -101,17 +104,17 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
 });
 
 Deno.test(`invalid website (pipe with diagnostics)`, async () => {
-  const ip = mod.textInspectionPipe(mod.inspectWebsiteURL);
-  const diags = new mod.TypicalTextInspectionDiags(
+  const ip = inspT.textInspectionPipe(inspT.inspectWebsiteURL);
+  const diags = new inspT.TypicalTextInspectionDiags(
     insp.inspectionPipeContext(),
   );
   const result = await ip("htps://bad.com/url", diags);
 
-  ta.assert(mod.isTextInspectionIssue(result));
+  ta.assert(inspT.isTextInspectionIssue(result));
   ta.assertEquals(diags.inspectionIssues.length, 1);
 
   const issue = diags.inspectionIssues[0];
-  ta.assert(mod.isDiagnosableTextInspectionIssue(issue));
+  ta.assert(inspT.isDiagnosableTextInspectionIssue(issue));
   ta.assertEquals(
     issue.mostRecentDiagnostic(),
     "Exception while trying to fetch htps://bad.com/url: TypeError: scheme 'htps' not supported",

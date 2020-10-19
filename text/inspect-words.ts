@@ -1,94 +1,51 @@
 import { safety } from "../deps.ts";
-import * as insp from "../inspect.ts";
-import * as itxt from "./inspect-text.ts";
+import * as insp from "../mod.ts";
+import * as inspT from "./inspect-text.ts";
 
 export const wordsInTextRegEx = /[^\s]+/g;
 
-export interface InspectWordCountRangeOptions
-  extends itxt.TextInspectionOptions {
-  // the names of these properties are long and descriptive because
-  // they can be merged with other validation pipe options
-  readonly inspectWordCountMinWords: number;
-  readonly inspectWordCountMaxWords: number;
+export interface InspectWordCountRangeSupplier {
+  readonly inspectWordCountRange: insp.NumericRange;
 }
 
-export interface InspectWordCountRangeOptionsSupplier {
-  readonly inspectWordCountRangeOptions: InspectWordCountRangeOptions;
-}
-
-export const isInspectWordCountRangeOptions = safety.typeGuard<
-  InspectWordCountRangeOptions
->("inspectWordCountMinWords", "inspectWordCountMaxWords");
-
-export const isInspectWordCountRangeOptionsSupplier = safety.typeGuard<
-  InspectWordCountRangeOptionsSupplier
->("inspectWordCountRangeOptions");
-
-export function inspectWordCountRangeOptions(
-  min: number,
-  max: number,
-): InspectWordCountRangeOptions {
-  return {
-    inspectWordCountMinWords: min,
-    inspectWordCountMaxWords: max,
-  };
-}
-
-export function detectInspectWordCountRangeOptions(
-  typical: InspectWordCountRangeOptions,
-  ...detectIn: unknown[]
-): InspectWordCountRangeOptions {
-  for (const check of detectIn) {
-    if (isInspectWordCountRangeOptionsSupplier(check)) {
-      return check.inspectWordCountRangeOptions;
-    }
-  }
-  for (const check of detectIn) {
-    if (isInspectWordCountRangeOptions(check)) {
-      return check;
-    }
-  }
-  return typical;
-}
+export const isInspectWordCountRangeSupplier = safety.typeGuard<
+  InspectWordCountRangeSupplier
+>("inspectWordCountRange");
 
 export async function inspectWordCountRange(
-  target: itxt.TextValue | itxt.TextInspectionResult,
-  // diags is really a itxt.TextInspectionDiagnostics though we only care about
-  // options so we've constructed a special instance that only requires that
-  // property. But it will still work if a full itxt.TextInspectionDiagnostics
-  // is passed in as well.
-  diags?: { options?: insp.InspectionOptions },
+  target: inspT.TextValue | inspT.TextInspectionResult,
+  ctx?:
+    | insp.InspectionContext
+    | inspT.TextInspectionDiagnostics
+    | insp.InspectionContext & InspectWordCountRangeSupplier
+    | inspT.TextInspectionDiagnostics & InspectWordCountRangeSupplier,
 ): Promise<
-  | itxt.TextValue
-  | itxt.TextInspectionResult
-  | itxt.TextInspectionIssue
+  | inspT.TextValue
+  | inspT.TextInspectionResult
+  | inspT.TextInspectionIssue
 > {
-  const it: itxt.TextValue = itxt.isTextInspectionResult(target)
+  const it: inspT.TextValue = inspT.isTextInspectionResult(target)
     ? target.inspectionTarget
     : target;
-  const text = itxt.resolveTextValue(it);
+  const text = inspT.resolveTextValue(it);
   if (!text || text.length == 0) {
     return target;
   }
 
   const tw = words(text);
   if (!tw) {
-    return itxt.textIssue(it, `Unable to count words`);
+    return inspT.textIssue(it, `Unable to count words`);
   }
 
-  const options = detectInspectWordCountRangeOptions(
-    inspectWordCountRangeOptions(10, 15),
-    diags?.options,
-    target,
-    diags,
-  );
+  let range: insp.NumericRange = insp.numericRange(10, 15);
+  if (isInspectWordCountRangeSupplier(ctx)) range = ctx.inspectWordCountRange;
   if (
-    tw.wordCount > options.inspectWordCountMaxWords ||
-    tw.wordCount < options.inspectWordCountMinWords
+    tw.wordCount > range.maximum ||
+    tw.wordCount < range.minimum
   ) {
-    return itxt.textIssue(
+    return inspT.textIssue(
       it,
-      `Word count should be between ${options.inspectWordCountMinWords}-${options.inspectWordCountMaxWords} (not ${tw.wordCount})`,
+      `Word count should be between ${range.minimum}-${range.maximum} (not ${tw.wordCount})`,
     );
   }
 
