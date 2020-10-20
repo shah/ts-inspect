@@ -90,7 +90,10 @@ export function isInspectionDiagnostics<
 export class InspectionDiagnosticsRecorder<
   T,
   E extends Error = Error,
-> implements InspectionDiagnostics<T, E>, InspectionIssuesManager<T> {
+> implements
+  InspectionContext,
+  InspectionDiagnostics<T, E>,
+  InspectionIssuesManager<T> {
   readonly isInInspectionPipe: boolean;
   readonly inspectionIssues: InspectionIssue<T>[] = [];
 
@@ -197,7 +200,7 @@ export class WrappedInspectionDiagnostics<
   T,
   E extends Error,
   W,
-> implements InspectionDiagnostics<T, E> {
+> implements InspectionContext, InspectionDiagnostics<T, E> {
   constructor(
     readonly parent: W,
     readonly parentDiags: InspectionDiagnostics<W, E>,
@@ -206,6 +209,10 @@ export class WrappedInspectionDiagnostics<
       parent: W,
     ) => WrappedInspectionResult<T, W> = wrapInspectionResult,
   ) {
+  }
+
+  get isInInspectionPipe(): boolean | undefined {
+    return this.parentDiags.isInInspectionPipe;
   }
 
   continue(target: T | InspectionResult<T>): boolean {
@@ -232,11 +239,15 @@ export class WrappedInspectionDiagnostics<
 }
 
 export class ConsoleInspectionDiagnostics<T, D, E extends Error = Error>
-  implements InspectionDiagnostics<T, E> {
+  implements InspectionContext, InspectionDiagnostics<T, E> {
   constructor(
     readonly wrap: InspectionDiagnostics<T, E>,
     readonly verbose?: boolean,
   ) {
+  }
+
+  get isInInspectionPipe(): boolean | undefined {
+    return this.wrap.isInInspectionPipe;
   }
 
   continue(target: T | InspectionResult<T>): boolean {

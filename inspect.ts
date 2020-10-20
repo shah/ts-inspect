@@ -2,7 +2,7 @@ import {
   InspectionContext,
   InspectionDiagnostics,
   isInspectionDiagnostics,
-} from "./diagnostics.ts";
+} from "./context.ts";
 import {
   isDiagnosable,
   isInspectionException,
@@ -12,33 +12,23 @@ import {
 } from "./issue.ts";
 import { EmptyInspectorsResult, InspectionResult } from "./result.ts";
 
-export interface Inspector<
-  T,
-  E extends Error,
-> {
+export interface Inspector<T> {
   (
     target: T | InspectionResult<T>,
-    ctx?: InspectionContext | InspectionDiagnostics<T, E>,
+    ctx?: InspectionContext,
   ): Promise<T | InspectionResult<T>>;
 }
 
-export interface InspectionPipe<
-  T,
-  E extends Error,
-> {
+export interface InspectionPipe<T> {
   (
-    inspectionTarget: T,
-    ctx?: InspectionContext | InspectionDiagnostics<T, E>,
+    initTarget: T,
+    ctx?: InspectionContext,
   ): Promise<T | InspectionResult<T>>;
 }
 
-export function inspectionPipe<
-  T,
-  D,
-  E extends Error,
->(
-  ...inspectors: Inspector<T, E>[]
-): InspectionPipe<T, E> {
+export function inspectionPipe<T, D, E extends Error>(
+  ...inspectors: Inspector<T>[]
+): InspectionPipe<T> {
   return async (
     inspectionTarget: T,
     ctx?: InspectionContext | InspectionDiagnostics<T, E>,
@@ -56,7 +46,7 @@ export function inspectionPipe<
     const diags = isInspectionDiagnostics<T, E>(ctx) ? ctx : undefined;
     for (const inspect of inspectors) {
       try {
-        result = await inspect(result, diags);
+        result = await inspect(result, ctx);
         if (isInspectionException<T, E>(result)) {
           if (diags) {
             result = await diags.onException(
@@ -78,7 +68,7 @@ export function inspectionPipe<
           ) {
             result = await diags.onIssue(result);
           }
-          if (!diags || !diags.continue(result)) return result;
+          if (diags && !diags.continue(result)) return result;
         }
       } catch (innerErr) {
         if (diags) {

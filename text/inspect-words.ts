@@ -16,9 +16,7 @@ export async function inspectWordCountRange(
   target: inspT.TextValue | inspT.TextInspectionResult,
   ctx?:
     | insp.InspectionContext
-    | inspT.TextInspectionDiagnostics
-    | insp.InspectionContext & InspectWordCountRangeSupplier
-    | inspT.TextInspectionDiagnostics & InspectWordCountRangeSupplier,
+    | insp.InspectionContext & InspectWordCountRangeSupplier,
 ): Promise<
   | inspT.TextValue
   | inspT.TextInspectionResult

@@ -1,3 +1,4 @@
+import { safety } from "../deps.ts";
 import * as insp from "../mod.ts";
 
 export interface TextValueSupplier {
@@ -11,11 +12,8 @@ export function resolveTextValue(value: TextValue, ...args: unknown[]): string {
 }
 
 export function textInspectionPipe(
-  ...inspectors: insp.Inspector<
-    TextValue,
-    Error
-  >[]
-): insp.InspectionPipe<TextValue, Error> {
+  ...inspectors: insp.Inspector<TextValue>[]
+): insp.InspectionPipe<TextValue> {
   return insp.inspectionPipe(...inspectors);
 }
 
@@ -42,6 +40,16 @@ export interface TextInspectionDiagnostics extends
   > {
 }
 
+export function isTextInspectionDiagnostics(
+  o: unknown,
+): o is TextInspectionDiagnostics {
+  return safety.typeGuard<TextInspectionDiagnostics>(
+    "continue",
+    "onIssue",
+    "onException",
+  )(o);
+}
+
 export class TypicalTextInspectionDiags
   extends insp.InspectionDiagnosticsRecorder<TextValue> {
 }
@@ -54,13 +62,9 @@ export class DerivedTextInspectionDiags<W>
   > {
 }
 
-export interface TextInspector extends
-  insp.Inspector<
-    TextValue,
-    Error
-  > {
+export interface TextInspector extends insp.Inspector<TextValue> {
   (
     target: TextValue | TextInspectionResult,
-    ctx?: insp.InspectionContext | TextInspectionDiagnostics,
+    ctx?: insp.InspectionContext,
   ): Promise<TextValue | insp.InspectionResult<TextValue>>;
 }
