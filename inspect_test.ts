@@ -1,7 +1,6 @@
-import * as mod from "./mod.ts";
-import { safety } from "./deps.ts";
 import { testingAsserts as ta } from "./deps-test.ts";
-import { assert } from "https://deno.land/std@0.74.0/testing/asserts.ts";
+import { safety } from "./deps.ts";
+import * as mod from "./mod.ts";
 
 interface TestContext extends mod.InspectionContext {
   isTestContext: true;
@@ -34,7 +33,7 @@ async function inspectTestTarget(
   if (isTestContext(ctx)) {
     ctx.count++;
   }
-  assert(!mod.isInspectionResult(target));
+  ta.assert(!mod.isInspectionResult(target));
   return {
     isInspectionResult: true,
     inspectionTarget: target,
