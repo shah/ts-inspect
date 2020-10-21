@@ -5,7 +5,7 @@ import {
   InspectionIssuesManager,
   isDiagnosable,
   isInspectionIssue,
-  isInspectionIssueRecoverable,
+  isInspectionIssueIrrecoverable,
   isInspectionIssuesManager,
   isSuccessfulInspection,
   mergeIssuesIntoResult,
@@ -102,10 +102,8 @@ export class InspectionDiagnosticsRecorder<
   }
 
   continue(target: T | InspectionResult<T>): boolean {
-    if (isInspectionIssueRecoverable(target)) return true;
-
-    // stop after the first unrecoverable error
-    return isSuccessfulInspection(target);
+    if (isInspectionIssueIrrecoverable(target)) return false;
+    return true;
   }
 
   async onIssue(

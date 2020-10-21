@@ -61,12 +61,12 @@ export function inspectionIssue<T, D>(
   };
 }
 
-export interface RecoverableInspectionIssue {
+export interface IrrecoverableInspectionIssue {
   readonly isRecoverableInspectionIssue: boolean;
 }
 
-export const isInspectionIssueRecoverable = safety.typeGuard<
-  RecoverableInspectionIssue
+export const isInspectionIssueIrrecoverable = safety.typeGuard<
+  IrrecoverableInspectionIssue
 >("isRecoverableInspectionIssue");
 
 export interface InspectionException<T, E extends Error = Error>
