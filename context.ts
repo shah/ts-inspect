@@ -7,7 +7,6 @@ import {
   isInspectionIssue,
   isInspectionIssueIrrecoverable,
   isInspectionIssuesManager,
-  isSuccessfulInspection,
   mergeIssuesIntoResult,
 } from "./issue.ts";
 import { InspectionResult, isInspectionResult } from "./result.ts";
