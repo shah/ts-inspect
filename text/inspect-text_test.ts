@@ -103,8 +103,63 @@ Deno.test(`word count does not match expectations (pipe with diagnostics)`, asyn
   );
 });
 
+Deno.test(`valid website URL domain and site result`, async () => {
+  const ip = inspT.textInspectionPipe(
+    inspT.websiteUrlInspector({
+      urlPattern: inspT.urlFormatInspector({ domainPattern: /facebook.com/ }),
+    }),
+  );
+  const diags = new inspT.TypicalTextInspectionDiags(
+    insp.inspectionPipeContext(),
+  );
+  const result = await ip("https://www.facebook.com", diags);
+
+  ta.assert(typeof result === "string");
+  ta.assert(!inspT.isTextInspectionIssue(result));
+});
+
+Deno.test(`invalid website URL format`, async () => {
+  const ip = inspT.textInspectionPipe(
+    inspT.urlFormatInspector({ domainPattern: /good.com/ }),
+  );
+  const diags = new inspT.TypicalTextInspectionDiags(
+    insp.inspectionPipeContext(),
+  );
+  const result = await ip("htps://bad.com/url", diags);
+
+  ta.assert(inspT.isTextInspectionIssue(result));
+  ta.assertEquals(diags.inspectionIssues.length, 1);
+
+  const issue = diags.inspectionIssues[0];
+  ta.assert(inspT.isDiagnosableTextInspectionIssue(issue));
+  ta.assertEquals(
+    issue.mostRecentDiagnostic(),
+    "htps://bad.com/url is not validly formatted",
+  );
+});
+
+Deno.test(`invalid website URL domain`, async () => {
+  const ip = inspT.textInspectionPipe(
+    inspT.urlFormatInspector({ domainPattern: "facebook.com" }),
+  );
+  const diags = new inspT.TypicalTextInspectionDiags(
+    insp.inspectionPipeContext(),
+  );
+  const result = await ip("https://www.google.com", diags);
+
+  ta.assert(inspT.isTextInspectionIssue(result));
+  ta.assertEquals(diags.inspectionIssues.length, 1);
+
+  const issue = diags.inspectionIssues[0];
+  ta.assert(inspT.isDiagnosableTextInspectionIssue(issue));
+  ta.assertEquals(
+    issue.mostRecentDiagnostic(),
+    "domain should end with 'facebook.com': https://www.google.com",
+  );
+});
+
 Deno.test(`invalid website (pipe with diagnostics)`, async () => {
-  const ip = inspT.textInspectionPipe(inspT.inspectWebsiteURL);
+  const ip = inspT.textInspectionPipe(inspT.websiteUrlInspector());
   const diags = new inspT.TypicalTextInspectionDiags(
     insp.inspectionPipeContext(),
   );

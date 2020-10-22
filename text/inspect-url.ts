@@ -2,38 +2,128 @@ import { safety } from "../deps.ts";
 import * as insp from "../mod.ts";
 import * as inspT from "./inspect-text.ts";
 
-export async function inspectWebsiteURL(
-  target: inspT.TextValue | inspT.TextInspectionResult,
-): Promise<
-  | inspT.TextValue
-  | inspT.TextInspectionResult
-  | inspT.TextInspectionIssue
-> {
-  const it: inspT.TextValue = inspT.isTextInspectionResult(target)
-    ? target.inspectionTarget
-    : target;
-  const url = inspT.resolveTextValue(it);
-  if (!url || url.length == 0) {
-    return it;
-  }
+export interface UrlOptions {
+  readonly required?: (
+    target: inspT.TextValue | inspT.TextInspectionResult,
+  ) => inspT.TextInspectionIssue;
+}
 
-  try {
-    const urlFetch = await fetch(url);
-    if (urlFetch.status != 200) {
-      return inspT.textIssue(
+export interface UrlFormatOptions extends UrlOptions {
+  readonly domainPattern?: string | RegExp;
+}
+
+export function urlFormatInspector(
+  options?: UrlFormatOptions,
+): inspT.TextInspector {
+  return async (
+    target: inspT.TextValue | inspT.TextInspectionResult,
+    ctx?: insp.InspectionContext,
+  ): Promise<
+    | inspT.TextValue
+    | inspT.TextInspectionResult
+    | inspT.TextInspectionIssue
+  > => {
+    const it: inspT.TextValue = inspT.isTextInspectionResult(target)
+      ? target.inspectionTarget
+      : target;
+    const url = inspT.resolveTextValue(it);
+    if (!url || url.length == 0) {
+      if (options && options.required) {
+        return options.required(target);
+      }
+      return it;
+    }
+
+    const urlPattern =
+      /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/gm;
+    if (!urlPattern.test(url)) {
+      return inspT.textIssue(it, `${url} is not validly formatted`);
+    }
+    if (options && options.domainPattern) {
+      const domainValue = url.replace("http://", "").replace("https://", "")
+        .split(/[/?#]/)[0].toLocaleLowerCase();
+      if (typeof options.domainPattern === "string") {
+        if (!domainValue.endsWith(options.domainPattern.toLocaleLowerCase())) {
+          return inspT.textIssue(
+            it,
+            `domain should end with '${options.domainPattern}': ${url}`,
+          );
+        }
+      } else if (!options.domainPattern.test(domainValue)) {
+        return inspT.textIssue(
+          it,
+          `domain should match RegExp '${options.domainPattern}': ${url}`,
+        );
+      }
+    }
+
+    // no errors found, return untouched
+    return target;
+  };
+}
+
+// no URL pattern checking is done, just fetch any URL passed in
+export const inspectWebsiteURL = websiteUrlInspector();
+
+export interface WebsiteUrlInspectorOptions extends UrlOptions {
+  readonly urlPattern?: RegExp | inspT.TextInspector;
+}
+
+export function websiteUrlInspector(
+  options?: WebsiteUrlInspectorOptions,
+): inspT.TextInspector {
+  return async (
+    target: inspT.TextValue | inspT.TextInspectionResult,
+    ctx?: insp.InspectionContext,
+  ): Promise<
+    | inspT.TextValue
+    | inspT.TextInspectionResult
+    | inspT.TextInspectionIssue
+  > => {
+    const it: inspT.TextValue = inspT.isTextInspectionResult(target)
+      ? target.inspectionTarget
+      : target;
+    const url = inspT.resolveTextValue(it);
+    if (!url || url.length == 0) {
+      if (options && options.required) {
+        return options.required(target);
+      }
+      return it;
+    }
+
+    try {
+      if (options && options.urlPattern) {
+        if (typeof options.urlPattern === "function") {
+          const issue = await options.urlPattern(url, ctx);
+          if (issue) return issue;
+        } else if (options.urlPattern instanceof RegExp) {
+          if (!url.match(options.urlPattern)) {
+            return inspT.textIssue(
+              it,
+              `${url} did not match: ${options.urlPattern}`,
+            );
+          }
+        }
+      }
+
+      const urlFetch = await fetch(url);
+      if (urlFetch.status != 200) {
+        return inspT.textIssue(
+          it,
+          `${url} did not return valid status: ${urlFetch.statusText}`,
+        );
+      }
+    } catch (err) {
+      return insp.inspectionException(
         it,
-        `${url} did not return valid status: ${urlFetch.statusText}`,
+        err,
+        `Exception while trying to fetch ${url}: ${err}`,
       );
     }
-  } catch (err) {
-    return inspT.textIssue(
-      it,
-      `Exception while trying to fetch ${url}: ${err}`,
-    );
-  }
 
-  // no errors found, return untouched
-  return target;
+    // no errors found, return untouched
+    return target;
+  };
 }
 
 export const defaultUrlTrackingCodesPattern = /(?<=&|\?)utm_.*?(&|$)/igm;
