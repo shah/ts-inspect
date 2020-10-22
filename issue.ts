@@ -83,6 +83,35 @@ export function isInspectionException<T, E extends Error = Error>(
   )(o);
 }
 
+export function inspectionException<T, D, E extends Error = Error>(
+  o: T | InspectionResult<T>,
+  exception: E,
+  diagnostic?: D | D[],
+): InspectionException<T, E> {
+  if (diagnostic) {
+    return {
+      ...inspectionIssue(o, diagnostic),
+      isInspectionException: true,
+      exception: exception,
+    };
+  }
+  if (isInspectionResult<T>(o)) {
+    return {
+      ...o,
+      isInspectionIssue: true,
+      isInspectionException: true,
+      exception: exception,
+    };
+  }
+  return {
+    isInspectionResult: true,
+    isInspectionIssue: true,
+    inspectionTarget: o,
+    isInspectionException: true,
+    exception: exception,
+  };
+}
+
 export interface InspectionIssuesManager<T> {
   readonly inspectionIssues: InspectionIssue<T>[];
 }
