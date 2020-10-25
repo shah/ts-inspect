@@ -116,22 +116,6 @@ export interface InspectionIssuesManager<T> {
   readonly inspectionIssues: InspectionIssue<T>[];
 }
 
-export function issueDiagnostics<T, D>(
-  o: InspectionIssue<T> | InspectionIssue<T>[],
-): D[] {
-  if (Array.isArray(o)) {
-    const result: D[] = [];
-    o.forEach((ii) => {
-      if (isDiagnosable<D>(ii)) result.push(...ii.diagnostics);
-    });
-    return result;
-  } else if (isDiagnosable<D>(o)) {
-    return o.diagnostics;
-  } else {
-    return [];
-  }
-}
-
 export function isInspectionIssuesManager<T>(
   o: unknown,
 ): o is InspectionIssuesManager<T> {

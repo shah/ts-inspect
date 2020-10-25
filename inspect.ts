@@ -5,6 +5,7 @@ import {
 } from "./context.ts";
 import {
   InspectionIssue,
+  InspectionIssuesManager,
   isDiagnosable,
   isInspectionException,
   isInspectionIssue,
@@ -29,6 +30,27 @@ export interface InspectionPipe<T> {
     initTarget: T,
     ctx?: InspectionContext,
   ): Promise<T | InspectionResult<T>>;
+}
+
+export interface InspectionPipeFlexibleIssues<T> {
+  (
+    initTarget: T,
+    ctx?: InspectionContext,
+  ): Promise<InspectionIssue<T> | InspectionIssue<T>[] | undefined>;
+}
+
+export interface InspectionPipeIssues<T> {
+  (
+    initTarget: T,
+    ctx?: InspectionContext,
+  ): Promise<InspectionIssue<T>[]>;
+}
+
+export interface InspectionPipeIssuesDiagnostics<T, D> {
+  (
+    initTarget: T,
+    ctx?: InspectionContext,
+  ): Promise<D[]>;
 }
 
 export interface InspectorProvenance<T> {
@@ -77,7 +99,7 @@ export function isEncounteredBy(o: unknown, by: symbol): o is Encounterable {
   return isEncountered(o) && o.encounteredBy === by;
 }
 
-export function inspectionPipe<T, D, E extends Error>(
+export function inspectionPipe<T, D = string, E extends Error = Error>(
   ...inspectors: Inspector<T>[]
 ): InspectionPipe<T> {
   return async (
@@ -142,6 +164,71 @@ export function inspectionPipe<T, D, E extends Error>(
           result = await diags.onException(result, innerErr);
         }
         if (!diags || !diags.continue(result)) return result;
+      }
+    }
+    return result;
+  };
+}
+
+export function inspectionPipeFlexibleIssues<
+  T,
+  D = string,
+  E extends Error = Error,
+>(
+  ...inspectors: Inspector<T>[]
+): InspectionPipeFlexibleIssues<T> {
+  return async (
+    inspectionTarget: T,
+    ctx?: InspectionContext | InspectionDiagnostics<T, E>,
+  ): Promise<InspectionIssue<T> | InspectionIssue<T>[] | undefined> => {
+    const pipe = inspectionPipe<T, D, E>(...inspectors);
+    const pipeResult = await pipe(inspectionTarget, ctx);
+    if (isInspectionIssuesManager<T>(pipeResult)) {
+      return pipeResult.inspectionIssues;
+    }
+    if (isInspectionIssue<T>(pipeResult)) {
+      return pipeResult;
+    }
+    return undefined;
+  };
+}
+
+export function inspectionPipeIssues<T, D = string, E extends Error = Error>(
+  ...inspectors: Inspector<T>[]
+): InspectionPipeIssues<T> {
+  return async (
+    inspectionTarget: T,
+    ctx?: InspectionContext | InspectionDiagnostics<T, E>,
+  ): Promise<InspectionIssue<T>[]> => {
+    const pipe = inspectionPipe<T, D, E>(...inspectors);
+    const pipeResult = await pipe(inspectionTarget, ctx);
+    if (isInspectionIssuesManager<T>(pipeResult)) {
+      return pipeResult.inspectionIssues;
+    }
+    if (isInspectionIssue<T>(pipeResult)) {
+      return [pipeResult];
+    }
+    return [];
+  };
+}
+
+export function inspectionPipeIssuesDiagnostics<
+  T,
+  D = string,
+  E extends Error = Error,
+>(
+  ...inspectors: Inspector<T>[]
+): InspectionPipeIssuesDiagnostics<T, D> {
+  return async (
+    inspectionTarget: T,
+    ctx?: InspectionContext | InspectionDiagnostics<T, E>,
+  ): Promise<D[]> => {
+    const pipe = inspectionPipeIssues<T, D, E>(...inspectors);
+    const issues = await pipe(inspectionTarget, ctx);
+    const result: D[] = [];
+    for (const issue of issues) {
+      if (isDiagnosable<D>(issue)) {
+        result.push(...issue.diagnostics);
       }
     }
     return result;
