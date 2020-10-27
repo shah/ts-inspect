@@ -3,9 +3,9 @@ import {
   InspectionDiagnostics,
   isInspectionDiagnostics,
 } from "./context.ts";
+import { safety } from "./deps.ts";
 import {
   InspectionIssue,
-  InspectionIssuesManager,
   isDiagnosable,
   isInspectionException,
   isInspectionIssue,
@@ -16,7 +16,6 @@ import {
   InspectionResult,
   isInspectionResult,
 } from "./result.ts";
-import { safety } from "./deps.ts";
 
 export interface Inspector<T> {
   (
