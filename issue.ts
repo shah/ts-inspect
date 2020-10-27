@@ -11,6 +11,7 @@ export function isSuccessfulInspection(o: unknown): boolean {
 
 export interface Diagnosable<D> {
   readonly diagnostics: D[];
+  readonly uniqueDiagnostics: () => D[];
   readonly mostRecentDiagnostic: () => D | undefined;
 }
 
@@ -41,6 +42,9 @@ export function inspectionIssue<T, D>(
     o.diagnostics.push(...diagnostics);
     return o;
   }
+  const uniqueDiagnostics = (): D[] => {
+    return [...new Set<D>(diagnostics)];
+  };
   const mostRecentDiagnostic = () => {
     return diagnostics[diagnostics.length - 1];
   };
@@ -49,6 +53,7 @@ export function inspectionIssue<T, D>(
       ...o,
       isInspectionIssue: true,
       diagnostics: diagnostics,
+      uniqueDiagnostics: uniqueDiagnostics,
       mostRecentDiagnostic: mostRecentDiagnostic,
     };
   }
@@ -57,6 +62,7 @@ export function inspectionIssue<T, D>(
     isInspectionIssue: true,
     inspectionTarget: o,
     diagnostics: diagnostics,
+    uniqueDiagnostics: uniqueDiagnostics,
     mostRecentDiagnostic: mostRecentDiagnostic,
   };
 }
