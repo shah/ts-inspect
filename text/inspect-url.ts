@@ -15,6 +15,7 @@ export interface UrlFormatOptions extends UrlOptions {
 export function urlFormatInspector(
   options?: UrlFormatOptions,
 ): inspT.TextInspector {
+  // deno-lint-ignore require-await
   return async (
     target: inspT.TextValue | inspT.TextInspectionResult,
     ctx?: insp.InspectionContext,
@@ -148,6 +149,7 @@ export function urlTrackingCodesPattern(
   return defaultPattern;
 }
 
+// deno-lint-ignore require-await
 export async function removeUrlRequestTrackingCodes(
   target: RequestInfo | insp.InspectionResult<RequestInfo>,
   ctx?:
@@ -162,6 +164,7 @@ export async function removeUrlRequestTrackingCodes(
   return target;
 }
 
+// deno-lint-ignore require-await
 export async function removeUrlTextTrackingCodes(
   target: string | insp.InspectionResult<string>,
   ctx?:

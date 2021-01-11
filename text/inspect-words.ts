@@ -12,6 +12,7 @@ export const isInspectWordCountRangeSupplier = safety.typeGuard<
   InspectWordCountRangeSupplier
 >("inspectWordCountRange");
 
+// deno-lint-ignore require-await
 export async function inspectWordCountRange(
   target: inspT.TextValue | inspT.TextInspectionResult,
   ctx?:

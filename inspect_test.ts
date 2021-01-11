@@ -26,6 +26,7 @@ const isChainedTarget = safety.typeGuard<ChainedTarget>(
   "previous",
 );
 
+// deno-lint-ignore require-await
 async function inspectTestTarget(
   target: TestTarget | mod.InspectionResult<TestTarget>,
   ctx?: mod.InspectionContext,
@@ -41,6 +42,7 @@ async function inspectTestTarget(
   };
 }
 
+// deno-lint-ignore require-await
 async function inspectChainedTarget(
   target: TestTarget | mod.InspectionResult<TestTarget>,
   ctx?: mod.InspectionContext,

@@ -105,6 +105,7 @@ export class InspectionDiagnosticsRecorder<
     return true;
   }
 
+  // deno-lint-ignore require-await
   async onIssue(
     issue: InspectionIssue<T>,
   ): Promise<InspectionIssue<T>> {
@@ -112,6 +113,7 @@ export class InspectionDiagnosticsRecorder<
     return issue;
   }
 
+  // deno-lint-ignore require-await
   async onException(
     target: T | InspectionResult<T>,
     error: E,
