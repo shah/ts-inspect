@@ -1,6 +1,7 @@
 import { safety } from "../deps.ts";
 import * as insp from "../mod.ts";
 import { path } from "./deps.ts";
+import * as lf from "../remediation/linux-filename.ts";
 
 export interface ProjectAsset {
   readonly absPathAndFileName: string;
@@ -25,30 +26,11 @@ export const assetInspectionPipeContext = insp.inspectionPipeContext;
 export const isAssetInspectionResult = insp.isInspectionResult;
 export const isSuccessfulAssetInspection = insp.isSuccessfulInspection;
 
-// deno-lint-ignore no-empty-interface
-export interface AssetRemediation {
-}
-
-export interface HumanPoweredRemediation extends AssetRemediation {
-  readonly humanInstructions: string;
-}
-
-export const isHumanPoweredRemediation = safety.typeGuard<
-  HumanPoweredRemediation
->("humanInstructions");
-
-export interface ShellCmdRemediation extends AssetRemediation {
-  readonly isIdempotent: boolean;
-  readonly shellCmd: (options: { os: string }) => string;
-}
-
-export const isShellCmdRemediation = safety.typeGuard<
-  ShellCmdRemediation
->("shellCmd", "isIdempotent");
-
 export interface AssetInspectionIssue
-  extends insp.InspectionIssue<ProjectAsset>, insp.Diagnosable<string> {
-  readonly remediation: AssetRemediation[];
+  extends
+    insp.InspectionIssue<ProjectAsset>,
+    insp.Diagnosable<string>,
+    insp.Remediatable<insp.Remediation> {
 }
 
 export const isAssetInspectionIssue = safety.typeGuard<AssetInspectionIssue>(
@@ -60,7 +42,7 @@ export const isAssetInspectionIssue = safety.typeGuard<AssetInspectionIssue>(
 export function assetIssue(
   o: ProjectAsset | AssetInspectionResult | AssetInspectionIssue,
   diagnostic: string,
-  remediation: AssetRemediation,
+  remediation: insp.Remediation,
 ): AssetInspectionIssue {
   if (isAssetInspectionIssue(o)) {
     o.diagnostics.push(diagnostic);
@@ -114,30 +96,6 @@ export interface AssetInspector extends insp.Inspector<ProjectAsset> {
   ): Promise<ProjectAsset | AssetInspectionResult>;
 }
 
-export interface RenameFileRemediation
-  extends ShellCmdRemediation, HumanPoweredRemediation {
-  readonly srcAbsPathAndFileName: string;
-  readonly destAbsPathAndFileName: string;
-}
-
-export function suggestFileNameRemediation(src: string): RenameFileRemediation {
-  const origPath = path.dirname(src);
-  const origFileName = path.basename(src);
-  const suggestedName = origFileName.trim().replaceAll(/ +/g, "-")
-    .toLocaleLowerCase();
-  const suggestedShellCmd =
-    `(cd ${origPath}; mv "${origFileName}" ${suggestedName})`;
-  return {
-    isIdempotent: false,
-    srcAbsPathAndFileName: src,
-    destAbsPathAndFileName: path.join(origPath, suggestedName),
-    humanInstructions: `Run this in a Linux/bash CLI: ${suggestedShellCmd}`,
-    shellCmd: () => {
-      return suggestedShellCmd;
-    },
-  };
-}
-
 // deno-lint-ignore require-await
 export async function inspectFileNameSpaces(
   target: ProjectAsset | AssetInspectionResult,
@@ -149,7 +107,7 @@ export async function inspectFileNameSpaces(
     return assetIssue(
       target,
       `should be renamed because it has spaces (replace all spaces with hyphens '-')`,
-      suggestFileNameRemediation(asset.absPathAndFileName),
+      lf.linuxFileNameRemediation(asset.absPathAndFileName),
     );
   }
   return asset;
@@ -166,7 +124,7 @@ export async function inspectFileNameCaseSensitivity(
     return assetIssue(
       target,
       `should be renamed because it has mixed case letters (all text should be lowercase only)`,
-      suggestFileNameRemediation(asset.absPathAndFileName),
+      lf.linuxFileNameRemediation(asset.absPathAndFileName),
     );
   }
   return asset;
